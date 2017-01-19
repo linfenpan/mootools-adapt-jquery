@@ -22,6 +22,10 @@
   <script>
     var $jsAttr = $('#jsAttr');
     $jsAttr.attr('href', 'test');
+    console.assert($jsAttr.attr('href') == 'test', '属性值，应该是 test ');
+
+    $jsAttr.removeAttr('href');
+    console.assert($jsAttr.attr('href') == null, '删除的属性，应该不存在');
   </script>
 </body>
 </html>

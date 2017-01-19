@@ -245,8 +245,21 @@
     }
   };
 
+  var listMethods = {
+    attr: function(name, value) {
+      if (!$type(value)) {
+        return jMethods.attr.call(this[0], name);
+      }
+      return jMethods.attr.call(this, name, value);
+    }
+  };
+
   Object.keys(jMethods).each(function(key) {
     Element.implement(key, jMethods[key]);
+  });
+
+  Object.keys(listMethods).each(function(key) {
+    Elements.implement(key, listMethods[key]);
   });
 
   CTX.$ = jQuery;
