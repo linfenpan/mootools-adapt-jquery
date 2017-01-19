@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>mootools模拟jQuery</title>
+  <script src="./mootools.js"></script>
+  <script src="./mootools-adapt-jquery.js"></script>
+</head>
+<body>
+  <h1>DOM Ready</h1>
+  <script>
+    var domready = 1;
+    $(function() {
+      domready = 2;
+    });
+    setTimeout(function() {
+      console.assert(domready === 2, '应该运行domready方法');
+    }, 1000);
+  </script>
+
+  <h1 id="jsAttr">$().attr('href');</h1>
+  <script>
+    var $jsAttr = $('#jsAttr');
+    $jsAttr.attr('href', 'test');
+  </script>
+</body>
+</html>
