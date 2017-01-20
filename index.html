@@ -5,6 +5,11 @@
   <title>mootools模拟jQuery</title>
   <script src="./mootools.js"></script>
   <script src="./mootools-adapt-jquery.js"></script>
+  <style>
+    * { padding: 0; margin: 0; }
+    h1 { margin-top: 20px; }
+    h1:first-child { margin-top: 0; }
+  </style>
 </head>
 <body>
   <h1>DOM Ready</h1>
@@ -18,14 +23,142 @@
     }, 1000);
   </script>
 
-  <h1 id="jsAttr">$().attr('href');</h1>
+  <h1 id="jsAttr">.attr('href');</h1>
   <script>
     var $jsAttr = $('#jsAttr');
     $jsAttr.attr('href', 'test');
     console.assert($jsAttr.attr('href') == 'test', '属性值，应该是 test ');
-
     $jsAttr.removeAttr('href');
     console.assert($jsAttr.attr('href') == null, '删除的属性，应该不存在');
   </script>
+
+  <h1>.html()</h1>
+  <div id="jsHtml">
+    <span>1</span>
+    &nbsp;|&nbsp;
+    <span>3</span>
+    &nbsp;|&nbsp;
+    <span>2</span>
+  </div>
+  <script>
+    var $jsHtml = $('#jsHtml span');
+    console.assert($jsHtml.html() == 1, 'html的值，应该等于第一个找到元素的值');
+    $jsHtml.html('333');
+    console.assert($jsHtml.html() == 333, 'html的值，应该全部变成333');
+  </script>
+
+  <h1>.text()</h1>
+  <div id="jsText">
+    <span>1</span>
+    &nbsp;|&nbsp;
+    <span>3</span>
+    &nbsp;|&nbsp;
+    <span>2</span>
+  </div>
+  <script>
+    var $jsText = $('#jsText span');
+    console.assert($jsText.text() == 1, 'text的值，应该等于第一个找到元素的值');
+    $jsText.text('333');
+    console.assert($jsText.text() == 333, 'text的值，应该全部变成333');
+  </script>
+
+  <h1>.val();<br> .css();</h1>
+  <div id="jsVal" style="width: 300px;">
+    <input type="text" value="1" style="width:20px;" />
+    &nbsp;|&nbsp;
+    <input type="text" value="2" style="width:20px;" />
+    &nbsp;|&nbsp;
+    <input type="text" value="3" style="width:20px;" />
+  </div>
+  <script>
+    var $jsVals = $('#jsVal input');
+    console.assert($jsVals.val() == 1, 'val的值，应该等于第一个找到元素的值');
+    $jsVals.val('4');
+    console.assert($jsVals.val() == 4, 'val的值，应该全部变成4');
+
+    var $jsVal = $('#jsVal');
+    console.assert($jsVal.css('width') == '300px', '.css("width")，获取宽度失败');
+    $jsVal.css('width', 500);
+    console.assert($jsVal.css('width') == '500px', '.css("width", 500)，设置宽度失败');
+    $jsVal.css({ width: 300 });
+    console.assert($jsVal.css('width') == '300px', '.css({width: 300})，设置宽度失败');
+  </script>
+
+  <h1>.append -> .appendElem();<br> .prepend -> .prependElem();<br> .children;<br> .last;</h1>
+  <div>append方法已经被 mootools 占用</div>
+  <div id="jsAppend"></div>
+  <div style="display:none">
+    <span id="jsAppendChild1">1</span>
+    <span id="jsAppendChild3">3</span>
+    <span id="jsAppendChild4">4</span>
+  </div>
+  <script>
+    var $jsAppend = $('#jsAppend');
+    $jsAppend.prependElem('#jsAppendChild1');
+    console.assert($jsAppend.children().length == 1, 'prependElem dom，应该插入一个正确的孩子');
+
+    $jsAppend.appendElem('<span id="jsAppendChild2">2</span>');
+    console.assert($('#jsAppendChild2').length == 1, 'appendElem 字符串，应该插入一个正确的孩子');
+
+    $jsAppend.appendElem('#jsAppendChild3');
+    console.assert($jsAppend.last().attr('id') == 'jsAppendChild3', 'appendElem 参数是id时，插入不正确');
+
+    $jsAppend.appendElem($('#jsAppendChild4'));
+    console.assert($jsAppend.last().attr('id') == 'jsAppendChild4', 'appendElem 参数dom时，插入不正确');
+  </script>
+
+  <h1>.wrap();<br> .unwrap();<br> .eq();<br> .parent();</h1>
+  <div id="jsWrap">
+    <span>被wrap内容1</span>
+    <span>被wrap内容2</span>
+    <span>被wrap内容3</span>
+  </div>
+  <div style="display: none;">
+    <a href="javascript:alert('wrap2');" id="jsWrapA2"></a>
+    <a href="javascript:alert('wrap3');" id="jsWrapA3"></a>
+  </div>
+  <script>
+    var $jsWraps = $('#jsWrap span');
+    var $jsWraps1 = $jsWraps.eq(0);
+    var $jsWraps2 = $jsWraps.eq(1);
+    var $jsWraps3 = $jsWraps.eq(-1);
+
+    console.assert($jsWraps1.text().indexOf('内容1') > 0, 'eq(0)，获取的元素错误');
+    console.assert($jsWraps3.text().indexOf('内容3') > 0, 'eq(-1)，获取的元素错误');
+
+    $jsWraps1.wrap('<a href="javascript:alert(\'wrap1\');" id="jsWrapA1"></a>');
+    console.assert($jsWraps1.parent().attr('id') === 'jsWrapA1', 'wrap(html)，出错');
+    $jsWraps2.wrap('#jsWrapA2');
+    console.assert($jsWraps2.parent().attr('id') === 'jsWrapA2', 'wrap(id)，出错');
+    $jsWraps3.wrap($('#jsWrapA3'));
+    console.assert($jsWraps3.parent().attr('id') === 'jsWrapA3', 'wrap(dom)，出错');
+  </script>
+
+  <h1>.remove();</h1>
+  <div id="jsRemove"></div>
+  <script>
+    $('#jsRemove').remove();
+    var $jsRemove = $('#jsRemove');
+    console.assert($jsRemove.length == 0, 'remove 方法出错');
+  </script>
+
+  <h1>.find();<br> .next();<br> .nextAll();<br> .prev();<br> .prevAll();</h1>
+  <div id="jsFind">
+    <span>first</span>
+    <span>second</span>
+    <span>third</span>
+  </div>
+  <script>
+    var $jsFind = $('#jsFind');
+    var $jsFinds = $jsFind.find('span');
+    console.assert($jsFinds.length == 3, 'find() 获取子元素数目错误');
+    console.assert($jsFinds.eq(0).next().length == 1, 'next() 获取不到元素');
+    console.assert($jsFinds.eq(0).nextAll().length == 2, 'nextAll() 获取不到元素');
+    console.assert($jsFinds.eq(2).prev().text() == 'second', 'prev()，获取元素错误');
+    console.assert($jsFinds.eq(2).prevAll().length == 2, 'prevAll()，获取元素错误');
+  </script>
+
+  
+
 </body>
 </html>

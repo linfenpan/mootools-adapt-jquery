@@ -1,5 +1,5 @@
 'use strict';
-(function(CTX, _$, _$$) {
+(function(CTX, _$, _$$, NAME) {
   var DOC = window.document;
 
   /**
@@ -11,17 +11,19 @@
 	 */
   var jQuery = function(expression, context) {
     // 处理 jQuery('<html>').
+    var element;
+
     if (typeof expression === 'string' && !context){
-      if (expression.charAt(0) === '<' && expression.chartAt(expression.length - 1) === '>'){
-        var element = new Element('div', {
+      if (expression.charAt(0) === '<' && expression.charAt(expression.length - 1) === '>'){
+        element = new Element('div', {
           html: expression
         }).getFirst();
-        return element;
+        return _$$(element);
       }
     }
 
     if (typeof expression === 'object') {
-      return DOC.id(expression);
+      return _$$(expression);
     }
 
     if (typeof expression === 'function') {
@@ -30,10 +32,31 @@
 
     // Handle jQuery(expression) and jQuery(expression, context).
     context = context || DOC;
-    element = context.getElementById(expression) || context.getElements(expression);
+    expression = expression.trim();
+
+    if (!/[^0-9a-zA-Z\-_]/.test(expression) && !context) {
+      // 兼容 mootools，获取单个id元素
+      element = document.id(expression, true, DOC);
+    } else {
+      element = context.getElements(expression);
+    }
 
     return element;
   };
+
+  // 插入元素
+  function grabElements(ctx, content, where) {
+    var elems = jQuery(content),
+      where = where || 'bottom';
+    if (elems && elems.length) {
+      elems.each(function(elem) {
+        ctx.grab(elem, where);
+      });
+    } else {
+      ctx.grab(elems, where);
+    }
+    return ctx;
+  }
 
   var jMethods = jQuery.fn = {
     attr: function(name, value) {
@@ -45,12 +68,12 @@
       return this.removeProperty(name);
     },
     html: function(html) {
-      if ($type(html) == 'undefined') var ret = this.innerHTML;
+      if (!$type(html)) return this.get('html');
       this.set('html', html);
       return this;
     },
     text: function(text) {
-      if (!text) var ret = this.innerText;
+      if (!text) return this.get('text');
       this.set('text', text);
       return this;
     },
@@ -58,78 +81,88 @@
       var ret = (!value) ? this.getProperty("value") : this.setProperty("value", value);
       return ret;
     },
-    append: function(content) {
-        var ret = this.inject(content);
-        return $extend(ret, jMethods);
+    css: function(name, value) {
+      if ($type(name) == 'object') {
+        return this.setStyles(name);
+      } else {
+        if (!value) {
+          return this.getStyle(name);
+        } else {
+          return this.setStyle(name, value);
+        }
+      }
+      return this;
     },
-    prepend: function(content) {
-        var ret = this.inject(content, 'parent');
-        return $extend(ret, jMethods);
+
+    // 在 mootools 中被保护了
+    appendElem: function(content) {
+      return grabElements(this, content, 'bottom');
+    },
+    prependElem: function(content) {
+      return grabElements(this, content, 'top');
     },
     after: function(content) {
-        var ret = this.inject(content, 'after');
-        return $extend(ret, jMethods);
+      return grabElements(this, content, 'after');
     },
     before: function(content) {
-        var ret = this.inject(content, 'before');
-        return $extend(ret, jMethods);
+      return grabElements(this, content, 'before');
     },
-    wrap: function(els) {
-        var ret = this.wraps(els);
-        return $extend(ret, jMethods);
+
+    wrap: function(elems) {
+      var $wrap = jQuery(elems);
+      var parentNode = this.parentNode;
+
+      $wrap = $wrap.length ? $wrap[0] : $wrap;
+      parentNode.replaceChild($wrap, this);
+      $wrap.appendElem(this);
+
+      return this;
     },
-    add: function(expr) {
-        var ret = ($type(expr) == 'string') ? this.set("html", expr) : this.inject(expr);
-        return $extend(ret, jMethods);
+    parent: function(expr) {
+      return this.getParent(expr);
     },
+    parents: function(expr) {
+      return this.getParents(expr);
+    },
+
     remove: function() {
       return this.destroy();
     },
-    css: function(name, value) {
-        if ($type(name) == 'object') var ret = this.setStyles(name);
-        var ret = (!value) ? this.getStyle(name) : this.setStyle(name, value);
-        var ret = $extend(ret, jMethods);
-        return $extend(ret, jMethods);
-    },
-    // children: function(expr) {
-    //     var ret = this.getChildren(expr);
-    //     return $extend(ret, jMethods);
-    // },
+
     find: function(expr) {
       return jQuery(expr, this);
     },
     next: function(expr) {
-        var ret = this.getNext(expr);
-        return $extend(ret, jMethods);
+      return jQuery(this.getNext(expr));
     },
     nextAll: function(expr) {
-        var ret = this.getNextAll(expr);
-        return $extend(ret, jMethods);
-    },
-    parent: function(expr) {
-        var ret = this.getParent(expr);
-        return $extend(ret, jMethods);
-    },
-    parents: function(expr) {
-        var ret = this.getParents(expr);
-        return $extend(ret, jMethods);
+      return jQuery(this.getAllNext(expr));
     },
     prev: function(expr) {
-        var ret = this.getPrevious(expr);
-        return $extend(ret, jMethods);
+      return jQuery(this.getPrevious(expr));
     },
     prevAll: function(expr) {
-        var ret = this.getAllPrevious(expr);
-        return $extend(ret, jMethods);
+      return jQuery(this.getAllPrevious(expr));
     },
-    bind: function(type, func) {
-        var ret = this.addEvent(type, func);
-        return $extend(ret, jMethods);
+
+    on: function(type, elem, func) {
+      if ($type(elem) == 'function') {
+        func = elem;
+        elem = '';
+      }
+      return this.addEvent(type + (elem ? 'relay('+ elem +')' : ''), func);
     },
-    unbind: function(type, func) {
-        var ret = this.removeEvent(type, func);
-        return $extend(ret, jMethods);
+    off: function(type, elem, func) {
+      if ($type(elem) == 'function') {
+        func = elem;
+        elem = '';
+      }
+      return this.removeEvent(type + (elem ? 'relay('+ elem +')' : ''), func);
     },
+    trigger: function(type, args) {
+      return this.fireEvent(type, args);
+    },
+
     blur: function(fn) {
         if ($type(fn) == 'function') var ret = this.addEvent("blur", fn);
         this.fireEvent("blur");
@@ -245,14 +278,60 @@
     }
   };
 
-  var listMethods = {
-    attr: function(name, value) {
-      if (!$type(value)) {
-        return jMethods.attr.call(this[0], name);
+  function getListAdaptMethod(method, index) {
+    var fn = jMethods[method];
+    return function() {
+      var args = arguments;
+      var val = args[index || 0];
+      if (!$type(val)) {
+        return fn.apply(this[0], args);
       }
-      return jMethods.attr.call(this, name, value);
+      return fn.apply(this, args);
+    };
+  }
+  function getListErgodicMethod(method) {
+    var fn = jMethods[method];
+    return function() {
+      var args = arguments, result = [];
+      this.each(function($r) {
+        var _fn = fn || $r[method];
+        result.combine(_fn.apply($r, args));
+      });
+      return jQuery(result);
     }
+  }
+
+  var listMethods = {
+    attr: getListAdaptMethod('attr', 1),
+    html: getListAdaptMethod('html', 0),
+    text: getListAdaptMethod('text', 0),
+    val: getListAdaptMethod('val', 0),
+    css: getListAdaptMethod('css', 1),
+
+    children: getListErgodicMethod('getChildren'),
+    eq: function(index) {
+      var list = this,
+        length = this.length;
+      index = index % length;
+      if (index < 0) {
+        index += length;
+      } else if (index >= length) {
+        index -= length;
+      }
+      return jQuery(list[index]);
+    },
+    last: function() {
+      var children = this.children();
+      return jQuery(children[children.length - 1]);
+    },
+
+    find: getListErgodicMethod('find'),
+    next: getListErgodicMethod('next'),
+    nextAll: getListErgodicMethod('nextAll'),
+    prev: getListErgodicMethod('prev'),
+    prevAll: getListErgodicMethod('prevAll'),
   };
+
 
   Object.keys(jMethods).each(function(key) {
     Element.implement(key, jMethods[key]);
@@ -262,5 +341,5 @@
     Elements.implement(key, listMethods[key]);
   });
 
-  CTX.$ = jQuery;
-})(window, $, $$);
+  CTX[NAME] = jQuery;
+})(window, $, $$, window.JQUERY_NAME || '$');
