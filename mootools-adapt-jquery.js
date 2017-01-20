@@ -1,6 +1,37 @@
 'use strict';
-(function(CTX, _$, _$$, NAME) {
+(function(WIN, _$, _$$, NAME) {
   var DOC = window.document;
+
+  function domReady (fn) {
+    var done = false, top=true,
+      doc = WIN.document, root = DOC.documentElement,
+      add = DOC.addEventListener ? 'addEventListener' : 'attachEvent',
+      rem = DOC.addEventListener ? 'removeEventListener' : 'detachEvent',
+      pre = DOC.addEventListener ? '' : 'on',
+
+      init = function(e) {
+        if(e.type == 'readystatechange' && DOC.readyState != 'complete') return;
+        (e.type == 'load' ? WIN : DOC)[rem](pre + e.type, init, false);
+        if(!done && (done=true)) fn.call(WIN, e.type || e);
+      },
+
+      poll = function() {
+        try {root.doScroll('left');} catch(e) {setTimeout(poll, 50);return;}
+        init('poll');
+      };
+
+    if(DOC.readyState == 'complete') {
+      fn.call(WIN, 'lazy');
+    } else {
+      if(DOC.createEventObject && root.doScroll) {
+        try {top =! win.frameElement;} catch(e) {}
+        if(top) poll();
+      }
+      DOC[add](pre + 'DOMContentLoaded', init, false);
+      DOC[add](pre + 'readystatechange', init, false);
+      WIN[add](pre + 'load', init, false);
+    }
+  }
 
   /**
 	 * Dummy jQuery factory function
@@ -27,7 +58,7 @@
     }
 
     if (typeof expression === 'function') {
-      return CTX.addEvent('domready', expression);
+      return domReady(expression);
     }
 
     // Handle jQuery(expression) and jQuery(expression, context).
@@ -35,14 +66,18 @@
     expression = expression.trim();
 
     if (!/[^0-9a-zA-Z\-_]/.test(expression) && !context) {
-      // 兼容 mootools，获取单个id元素
+      // 兼容 mootools，获取单个id元素 $('xxxx')
       element = document.id(expression, true, DOC);
     } else {
       element = context.getElements(expression);
     }
 
     return element;
-  };
+  }
+
+  jQuery.ready = function(fn) {
+    fn && domReady(fn);
+  }
 
   // 插入元素
   function grabElements(ctx, content, where) {
@@ -146,27 +181,64 @@
     },
 
     on: function(type, elem, func) {
+      var ctx = this;
       if ($type(elem) == 'function') {
         func = elem;
         elem = '';
+      } else {
+        type += elem ? ':relay('+ elem +')' : '';
       }
-      return this.addEvent(type + (elem ? 'relay('+ elem +')' : ''), func);
+      ctx.$fns = ctx.$fns || [];
+      func && ctx.$fns.push({ type: type, fn: func });
+
+      return ctx.addEvent(type, func);
     },
     off: function(type, elem, func) {
+      var ctx = this;
       if ($type(elem) == 'function') {
         func = elem;
         elem = '';
+      } else {
+        type += elem ? ':relay('+ elem +')' : '';
       }
-      return this.removeEvent(type + (elem ? 'relay('+ elem +')' : ''), func);
+
+      if (func) {
+        ctx.removeEvent(type, func);
+        var fns = (ctx.$fns || []), newFns = [];
+        fns.each(function(item) {
+          if (item.type != type || item.fn != func) {
+            newFns.push(item);
+          }
+        });
+        ctx.$fns = newFns;
+      } else {
+        ctx.removeEvents(type);
+      }
+
+      if (ctx.$fns.length <= 0) {
+        ctx.$fns = void 0;
+      }
+
+      return ctx;
     },
-    trigger: function(type, args) {
-      return this.fireEvent(type, args);
+    trigger: function(type, elems, args) {
+      var ctx = this;
+      if ($type(elems) == 'string') {
+        type += ':relay('+ elems +')';
+      } else {
+        args = elems;
+      }
+      ctx.fireEvent(type, args);
+      return ctx;
+      // return this.fireEvent(type, args);
     },
 
     blur: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("blur", fn);
-        this.fireEvent("blur");
-        return $extend(ret, jMethods);
+      if ($type(fn) == 'function') {
+        return this.addEvent('blur', fn);
+      }
+      this['blur'] ? this['blur']() : this.fireEvent('blur');
+      return this;
     },
     focus: function(fn) {
         if ($type(fn) == 'function') var ret = this.addEvent("focus", fn);
@@ -272,11 +344,9 @@
         if ($type(fn) == 'function') var ret = this.addEvent("error", fn);
         this.fireEvent("error");
         return $extend(ret, jMethods);
-    },
-    ready: function(fn) {
-        window.addEvent('domready', fn);
     }
   };
+
 
   function getListAdaptMethod(method, index) {
     var fn = jMethods[method];
@@ -329,7 +399,7 @@
     next: getListErgodicMethod('next'),
     nextAll: getListErgodicMethod('nextAll'),
     prev: getListErgodicMethod('prev'),
-    prevAll: getListErgodicMethod('prevAll'),
+    prevAll: getListErgodicMethod('prevAll')
   };
 
 
@@ -341,5 +411,5 @@
     Elements.implement(key, listMethods[key]);
   });
 
-  CTX[NAME] = jQuery;
+  WIN[NAME] = jQuery;
 })(window, $, $$, window.JQUERY_NAME || '$');

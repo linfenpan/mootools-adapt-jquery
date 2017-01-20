@@ -158,7 +158,54 @@
     console.assert($jsFinds.eq(2).prevAll().length == 2, 'prevAll()，获取元素错误');
   </script>
 
-  
+  <h1>.on();<br> .off();<br> .trigger();</h1>
+  <div id="jsEvent">
+    <a href="javascript:;">点击</a>
+  </div>
+  <script>
+    var jsEventId = 0, jsOther = 0;
+    var jsEventFn = function(other) {
+      jsEventId = 1;
+      jsOther = other;
+    };
+
+    // 普通的绑定
+    $('#jsEvent').find('a').on('click', jsEventFn);
+    $('#jsEvent').find('a').trigger('click', [1]);
+    console.assert(jsEventId == 1, 'trigger 或 on 绑定失败');
+    console.assert(jsOther == 1, 'trigger 传递参数失败');
+
+    jsEventId = 0, jsOther = 0;
+    $('#jsEvent').find('a').off('click');
+    $('#jsEvent').find('a').trigger('click', [1]);
+    console.assert(jsEventId == 0, 'off 解绑失败');
+    console.assert(jsOther == 0, 'off 解绑失败');
+
+    $('#jsEvent').find('a').on('click', jsEventFn);
+    $('#jsEvent').find('a').off('click', jsEventFn);
+    $('#jsEvent').find('a').trigger('click', [1]);
+    console.assert(jsEventId == 0, 'off 解绑失败');
+    console.assert(jsOther == 0, 'off 解绑失败');
+
+
+    // 代理绑定
+    $('#jsEvent').on('click', 'a', function(other) {
+      jsEventId = 1;
+      jsOther = other;
+    });
+    // 代理是不能使用 trigger 触发的
+    $('#jsEvent').trigger('click', 'a', [1]);
+    console.assert(jsEventId == 1, 'trigger 或 on 绑定失败');
+    console.assert(jsOther == 1, 'trigger 或 on 绑定失败');
+  </script>
+
+  <h1>事件绑定</h1>
+  <div>
+    <input type="text" id="jsBlur" />
+  </div>
+  <script>
+
+  </script>
 
 </body>
 </html>
