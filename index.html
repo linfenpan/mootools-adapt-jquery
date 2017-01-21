@@ -15,7 +15,7 @@
   <h1>DOM Ready</h1>
   <script>
     var domready = 1;
-    $(function() {
+    jQuery(function() {
       domready = 2;
     });
     setTimeout(function() {
@@ -25,7 +25,7 @@
 
   <h1 id="jsAttr">.attr('href');</h1>
   <script>
-    var $jsAttr = $('#jsAttr');
+    var $jsAttr = jQuery('#jsAttr');
     $jsAttr.attr('href', 'test');
     console.assert($jsAttr.attr('href') == 'test', '属性值，应该是 test ');
     $jsAttr.removeAttr('href');
@@ -41,7 +41,7 @@
     <span>2</span>
   </div>
   <script>
-    var $jsHtml = $('#jsHtml span');
+    var $jsHtml = jQuery('#jsHtml span');
     console.assert($jsHtml.html() == 1, 'html的值，应该等于第一个找到元素的值');
     $jsHtml.html('333');
     console.assert($jsHtml.html() == 333, 'html的值，应该全部变成333');
@@ -56,7 +56,7 @@
     <span>2</span>
   </div>
   <script>
-    var $jsText = $('#jsText span');
+    var $jsText = jQuery('#jsText span');
     console.assert($jsText.text() == 1, 'text的值，应该等于第一个找到元素的值');
     $jsText.text('333');
     console.assert($jsText.text() == 333, 'text的值，应该全部变成333');
@@ -71,12 +71,12 @@
     <input type="text" value="3" style="width:20px;" />
   </div>
   <script>
-    var $jsVals = $('#jsVal input');
+    var $jsVals = jQuery('#jsVal input');
     console.assert($jsVals.val() == 1, 'val的值，应该等于第一个找到元素的值');
     $jsVals.val('4');
     console.assert($jsVals.val() == 4, 'val的值，应该全部变成4');
 
-    var $jsVal = $('#jsVal');
+    var $jsVal = jQuery('#jsVal');
     console.assert($jsVal.css('width') == '300px', '.css("width")，获取宽度失败');
     $jsVal.css('width', 500);
     console.assert($jsVal.css('width') == '500px', '.css("width", 500)，设置宽度失败');
@@ -84,7 +84,7 @@
     console.assert($jsVal.css('width') == '300px', '.css({width: 300})，设置宽度失败');
   </script>
 
-  <h1>.append -> .appendElem();<br> .prepend -> .prependElem();<br> .children;<br> .last;</h1>
+  <h1>.append();<br> .prepend();<br> .children;<br> .last;</h1>
   <div>append方法已经被 mootools 占用</div>
   <div id="jsAppend"></div>
   <div style="display:none">
@@ -93,18 +93,18 @@
     <span id="jsAppendChild4">4</span>
   </div>
   <script>
-    var $jsAppend = $('#jsAppend');
-    $jsAppend.prependElem('#jsAppendChild1');
-    console.assert($jsAppend.children().length == 1, 'prependElem dom，应该插入一个正确的孩子');
+    var $jsAppend = jQuery('#jsAppend');
+    $jsAppend.prepend('#jsAppendChild1');
+    console.assert($jsAppend.children().length == 1, 'prepend dom，应该插入一个正确的孩子');
 
-    $jsAppend.appendElem('<span id="jsAppendChild2">2</span>');
-    console.assert($('#jsAppendChild2').length == 1, 'appendElem 字符串，应该插入一个正确的孩子');
+    $jsAppend.append('<span id="jsAppendChild2">2</span>');
+    console.assert(jQuery('#jsAppendChild2').length == 1, 'append 字符串，应该插入一个正确的孩子');
 
-    $jsAppend.appendElem('#jsAppendChild3');
-    console.assert($jsAppend.last().attr('id') == 'jsAppendChild3', 'appendElem 参数是id时，插入不正确');
+    $jsAppend.append('#jsAppendChild3');
+    console.assert($jsAppend.last().attr('id') == 'jsAppendChild3', 'append 参数是id时，插入不正确');
 
-    $jsAppend.appendElem($('#jsAppendChild4'));
-    console.assert($jsAppend.last().attr('id') == 'jsAppendChild4', 'appendElem 参数dom时，插入不正确');
+    $jsAppend.append(jQuery('#jsAppendChild4'));
+    console.assert($jsAppend.last().attr('id') == 'jsAppendChild4', 'append 参数dom时，插入不正确');
   </script>
 
   <h1>.wrap();<br> .unwrap();<br> .eq();<br> .parent();</h1>
@@ -118,7 +118,7 @@
     <a href="javascript:alert('wrap3');" id="jsWrapA3"></a>
   </div>
   <script>
-    var $jsWraps = $('#jsWrap span');
+    var $jsWraps = jQuery('#jsWrap span');
     var $jsWraps1 = $jsWraps.eq(0);
     var $jsWraps2 = $jsWraps.eq(1);
     var $jsWraps3 = $jsWraps.eq(-1);
@@ -130,15 +130,15 @@
     console.assert($jsWraps1.parent().attr('id') === 'jsWrapA1', 'wrap(html)，出错');
     $jsWraps2.wrap('#jsWrapA2');
     console.assert($jsWraps2.parent().attr('id') === 'jsWrapA2', 'wrap(id)，出错');
-    $jsWraps3.wrap($('#jsWrapA3'));
+    $jsWraps3.wrap(jQuery('#jsWrapA3'));
     console.assert($jsWraps3.parent().attr('id') === 'jsWrapA3', 'wrap(dom)，出错');
   </script>
 
   <h1>.remove();</h1>
   <div id="jsRemove"></div>
   <script>
-    $('#jsRemove').remove();
-    var $jsRemove = $('#jsRemove');
+    jQuery('#jsRemove').remove();
+    var $jsRemove = jQuery('#jsRemove');
     console.assert($jsRemove.length == 0, 'remove 方法出错');
   </script>
 
@@ -149,7 +149,7 @@
     <span>third</span>
   </div>
   <script>
-    var $jsFind = $('#jsFind');
+    var $jsFind = jQuery('#jsFind');
     var $jsFinds = $jsFind.find('span');
     console.assert($jsFinds.length == 3, 'find() 获取子元素数目错误');
     console.assert($jsFinds.eq(0).next().length == 1, 'next() 获取不到元素');
@@ -170,41 +170,46 @@
     };
 
     // 普通的绑定
-    $('#jsEvent').find('a').on('click', jsEventFn);
-    $('#jsEvent').find('a').trigger('click', [1]);
+    jQuery('#jsEvent').find('a').on('click', jsEventFn);
+    jQuery('#jsEvent').find('a').trigger('click', [1]);
     console.assert(jsEventId == 1, 'trigger 或 on 绑定失败');
     console.assert(jsOther == 1, 'trigger 传递参数失败');
 
     jsEventId = 0, jsOther = 0;
-    $('#jsEvent').find('a').off('click');
-    $('#jsEvent').find('a').trigger('click', [1]);
+    jQuery('#jsEvent').find('a').off('click');
+    jQuery('#jsEvent').find('a').trigger('click', [1]);
     console.assert(jsEventId == 0, 'off 解绑失败');
     console.assert(jsOther == 0, 'off 解绑失败');
 
-    $('#jsEvent').find('a').on('click', jsEventFn);
-    $('#jsEvent').find('a').off('click', jsEventFn);
-    $('#jsEvent').find('a').trigger('click', [1]);
+    jQuery('#jsEvent').find('a').on('click', jsEventFn);
+    jQuery('#jsEvent').find('a').off('click', jsEventFn);
+    jQuery('#jsEvent').find('a').trigger('click', [1]);
     console.assert(jsEventId == 0, 'off 解绑失败');
     console.assert(jsOther == 0, 'off 解绑失败');
 
 
     // 代理绑定
-    $('#jsEvent').on('click', 'a', function(other) {
+    jQuery('#jsEvent').on('click', 'a', function(other) {
       jsEventId = 1;
       jsOther = other;
     });
     // 代理是不能使用 trigger 触发的
-    $('#jsEvent').trigger('click', 'a', [1]);
+    jQuery('#jsEvent').trigger('click', 'a', [1]);
     console.assert(jsEventId == 1, 'trigger 或 on 绑定失败');
     console.assert(jsOther == 1, 'trigger 或 on 绑定失败');
   </script>
 
   <h1>事件绑定</h1>
   <div>
-    <input type="text" id="jsBlur" />
+    <input type="text" id="jsFocus" /> <a href="javascript:;" onclick="jQuery('#jsFocus').focus()">聚焦</a>
   </div>
   <script>
-
+    var jsFocus = 0;
+    jQuery('#jsFocus').click(function() {
+      jsFocus = 1;
+    });
+    jQuery('#jsFocus').click();
+    console.assert(jsFocus == 1, 'click 没有绑定成功，或者没有触发');
   </script>
 
 </body>

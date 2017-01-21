@@ -1,4 +1,5 @@
 'use strict';
+// 用 mootools 尽量模拟 jQuery
 (function(WIN, _$, _$$, NAME) {
   var DOC = window.document;
 
@@ -33,6 +34,14 @@
     }
   }
 
+  Function.implement({
+    // 是否强制循环
+    breakSelf: function() {
+      this.$breakSelf = true;
+      return this;
+    }
+  });
+
   /**
 	 * Dummy jQuery factory function
 	 *
@@ -46,15 +55,10 @@
 
     if (typeof expression === 'string' && !context){
       if (expression.charAt(0) === '<' && expression.charAt(expression.length - 1) === '>'){
-        element = new Element('div', {
+        expression = new Element('div', {
           html: expression
         }).getFirst();
-        return _$$(element);
       }
-    }
-
-    if (typeof expression === 'object') {
-      return _$$(expression);
     }
 
     if (typeof expression === 'function') {
@@ -62,38 +66,81 @@
     }
 
     // Handle jQuery(expression) and jQuery(expression, context).
-    context = context || DOC;
-    expression = expression.trim();
-
-    if (!/[^0-9a-zA-Z\-_]/.test(expression) && !context) {
-      // 兼容 mootools，获取单个id元素 $('xxxx')
-      element = document.id(expression, true, DOC);
+    if (expression instanceof jQueryAdapter) {
+      element = expression;
+    } else if (typeof expression === 'object') {
+      element = _$$(expression);
     } else {
+      context = context || DOC;
+      expression = expression.trim();
       element = context.getElements(expression);
     }
 
-    return element;
+    return new jQueryAdapter(element);
   }
 
-  jQuery.ready = function(fn) {
-    fn && domReady(fn);
+  $extend(jQuery, {
+    ready: function(fn) {
+      fn && domReady(fn);
+    }
+  });
+
+  function jQueryAdapter(elements) {
+    if (elements instanceof jQueryAdapter) {
+      return elements;
+    }
+
+    var ctx = this;
+    elements = elements || [];
+    ctx.length = elements.length;
+
+    for (var i = 0; i < ctx.length; i++) {
+      ctx[i] = elements[i];
+    }
+  }
+  var _proto_ = jQueryAdapter.prototype;
+
+  // 适配 jQuery 的列表
+  function adaptList(data) {
+    var obj = {};
+    for (var key in data) {
+      if (data.hasOwnProperty(key)) {
+        obj[key] = (function(key) {
+          return function() {
+            var elements = this,
+              args = arguments,
+              fn = data[key];
+            var result = [];
+
+            for (var i = 0, max = this.length; i < max; i++) {
+              var elem = elements[i];
+              var res = fn.apply(elem, args);
+              if (fn.$breakSelf) {
+                // combine 仅接收数组
+                res && result.combine(res.length ? res : [res]);
+              } else if (res != elem) {
+                return $type(res).toString().indexOf('element') >= 0 ? jQuery(res) : res;
+              }
+            }
+            return fn.$breakSelf ? jQuery(result) : this;
+          };
+        })(key);
+      }
+    }
+    return obj;
   }
 
   // 插入元素
   function grabElements(ctx, content, where) {
     var elems = jQuery(content),
-      where = where || 'bottom';
-    if (elems && elems.length) {
-      elems.each(function(elem) {
-        ctx.grab(elem, where);
-      });
-    } else {
-      ctx.grab(elems, where);
-    }
+    where = where || 'bottom';
+    elems.each(function(elem) {
+      ctx.grab(elem, where);
+    });
     return ctx;
   }
 
-  var jMethods = jQuery.fn = {
+  var proto = {
     attr: function(name, value) {
       if ($type(name) == 'object') var ret = this.setProperties(name);
       var ret = (!value) ? this.getProperty(name) : this.setProperty(name, value);
@@ -129,18 +176,21 @@
       return this;
     },
 
-    // 在 mootools 中被保护了
-    appendElem: function(content) {
-      return grabElements(this, content, 'bottom');
+    append: function(content) {
+      grabElements(this, content, 'bottom');
+      return this;
     },
-    prependElem: function(content) {
-      return grabElements(this, content, 'top');
+    prepend: function(content) {
+      grabElements(this, content, 'top');
+      return this;
     },
     after: function(content) {
-      return grabElements(this, content, 'after');
+      grabElements(this, content, 'after');
+      return this;
     },
     before: function(content) {
-      return grabElements(this, content, 'before');
+      grabElements(this, content, 'before');
+      return this;
     },
 
     wrap: function(elems) {
@@ -149,36 +199,36 @@
 
       $wrap = $wrap.length ? $wrap[0] : $wrap;
       parentNode.replaceChild($wrap, this);
-      $wrap.appendElem(this);
+      $wrap.append(this);
 
       return this;
     },
     parent: function(expr) {
       return this.getParent(expr);
-    },
+    }.breakSelf(),
     parents: function(expr) {
       return this.getParents(expr);
-    },
+    }.breakSelf(),
 
     remove: function() {
       return this.destroy();
     },
 
     find: function(expr) {
-      return jQuery(expr, this);
-    },
+      return this.getChildren(expr);
+    }.breakSelf(),
     next: function(expr) {
-      return jQuery(this.getNext(expr));
-    },
+      return this.getNext(expr);
+    }.breakSelf(),
     nextAll: function(expr) {
-      return jQuery(this.getAllNext(expr));
-    },
+      return this.getAllNext(expr);
+    }.breakSelf(),
     prev: function(expr) {
-      return jQuery(this.getPrevious(expr));
-    },
+      return this.getPrevious(expr);
+    }.breakSelf(),
     prevAll: function(expr) {
-      return jQuery(this.getAllPrevious(expr));
-    },
+      return this.getAllPrevious(expr);
+    }.breakSelf(),
 
     on: function(type, elem, func) {
       var ctx = this;
@@ -231,154 +281,33 @@
       ctx.fireEvent(type, args);
       return ctx;
       // return this.fireEvent(type, args);
-    },
-
-    blur: function(fn) {
-      if ($type(fn) == 'function') {
-        return this.addEvent('blur', fn);
-      }
-      this['blur'] ? this['blur']() : this.fireEvent('blur');
-      return this;
-    },
-    focus: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("focus", fn);
-        this.fireEvent("focus");
-        return $extend(ret, jMethods);
-    },
-    load: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("load", fn);
-        this.fireEvent("load");
-        return $extend(ret, jMethods);
-    },
-    resize: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("resize", fn);
-        this.fireEvent("resize");
-        return $extend(ret, jMethods);
-    },
-    scroll: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("scroll", fn);
-        this.fireEvent("scroll");
-        return $extend(ret, jMethods);
-    },
-    unload: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("unload", fn);
-        this.fireEvent("unload");
-        return $extend(ret, jMethods);
-    },
-    click: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("click", fn);
-        this.fireEvent("click");
-        return $extend(ret, jMethods);
-    },
-    dblclick: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("dblclick", fn);
-        this.fireEvent("dblclick");
-        return $extend(ret, jMethods);
-    },
-    mousedown: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mousedown", fn);
-        this.fireEvent("mousedown");
-        return $extend(ret, jMethods);
-    },
-    mouseup: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseup", fn);
-        this.fireEvent("mouseup");
-        return $extend(ret, jMethods);
-    },
-    mousemove: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mousemove", fn);
-        this.fireEvent("mousemove");
-        return $extend(ret, jMethods);
-    },
-    mouseover: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseover", fn);
-        this.fireEvent("mouseover");
-        return $extend(ret, jMethods);
-    },
-    mouseout: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseout", fn);
-        this.fireEvent("mouseout");
-        return $extend(ret, jMethods);
-    },
-    mouseenter: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseenter", fn);
-        this.fireEvent("mouseenter");
-        return $extend(ret, jMethods);
-    },
-    mouseleave: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseleave", fn);
-        this.fireEvent("mouseleave");
-        return $extend(ret, jMethods);
-    },
-    change: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("change", fn);
-        this.fireEvent("change");
-        return $extend(ret, jMethods);
-    },
-    select: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("select", fn);
-        this.fireEvent("select");
-        return $extend(ret, jMethods);
-    },
-    submit: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("submit", fn);
-        this.fireEvent("submit");
-        return $extend(ret, jMethods);
-    },
-    keydown: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("keydown", fn);
-        this.fireEvent("keydown");
-        return $extend(ret, jMethods);
-    },
-    keypress: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("keypress", fn);
-        this.fireEvent("keypress");
-        return $extend(ret, jMethods);
-    },
-    keyup: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("keyup", fn);
-        this.fireEvent("keyup");
-        return $extend(ret, jMethods);
-    },
-    error: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("error", fn);
-        this.fireEvent("error");
-        return $extend(ret, jMethods);
     }
   };
+  $extend(_proto_, adaptList(proto));
 
-
-  function getListAdaptMethod(method, index) {
-    var fn = jMethods[method];
-    return function() {
-      var args = arguments;
-      var val = args[index || 0];
-      if (!$type(val)) {
-        return fn.apply(this[0], args);
+  // 方法注入
+  var protoEvent = {};
+  ["blur","focus","load","resize","scroll","unload","click","dblclick","mousedown","mouseup","mousemove","mouseover","mouseout","mouseenter","mouseleave","change","select","submit","keydown","keypress","keyup","error"].each(function(key) {
+    protoEvent[key] = function(fn) {
+      var ctx = this;
+      if ($type(fn) == 'function') {
+        return ctx.addEvent(key, fn);
       }
-      return fn.apply(this, args);
-    };
-  }
-  function getListErgodicMethod(method) {
-    var fn = jMethods[method];
-    return function() {
-      var args = arguments, result = [];
-      this.each(function($r) {
-        var _fn = fn || $r[method];
-        result.combine(_fn.apply($r, args));
-      });
-      return jQuery(result);
+      ctx[key] ? ctx[key]() : ctx.fireEvent(key);
+      return ctx;
     }
-  }
+  });
+  $extend(_proto_, adaptList(protoEvent));
 
-  var listMethods = {
-    attr: getListAdaptMethod('attr', 1),
-    html: getListAdaptMethod('html', 0),
-    text: getListAdaptMethod('text', 0),
-    val: getListAdaptMethod('val', 0),
-    css: getListAdaptMethod('css', 1),
-
-    children: getListErgodicMethod('getChildren'),
+  // 拓展列表的方法
+  $extend(_proto_, {
+    each: function(fn) {
+      for (var i = 0; i < this.length; i++) {
+        var elem = this[i];
+        fn.call(this, elem, i);
+      }
+      return this;
+    },
     eq: function(index) {
       var list = this,
         length = this.length;
@@ -390,26 +319,18 @@
       }
       return jQuery(list[index]);
     },
-    last: function() {
-      var children = this.children();
-      return jQuery(children[children.length - 1]);
+    children: function(expr) {
+      var result = [];
+      this.each(function(elem) {
+        result.combine(elem.getChildren(expr) || []);
+      });
+      return jQuery(result);
     },
-
-    find: getListErgodicMethod('find'),
-    next: getListErgodicMethod('next'),
-    nextAll: getListErgodicMethod('nextAll'),
-    prev: getListErgodicMethod('prev'),
-    prevAll: getListErgodicMethod('prevAll')
-  };
-
-
-  Object.keys(jMethods).each(function(key) {
-    Element.implement(key, jMethods[key]);
-  });
-
-  Object.keys(listMethods).each(function(key) {
-    Elements.implement(key, listMethods[key]);
+    last: function(expr) {
+      var children = this.children(expr);
+      return jQuery(children[children.length - 1]);
+    }
   });
 
   WIN[NAME] = jQuery;
-})(window, $, $$, window.JQUERY_NAME || '$');
+})(window, $, $$, window.JQUERY_NAME || 'jQuery');
