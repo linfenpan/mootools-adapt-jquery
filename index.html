@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>mootools模拟jQuery</title>
   <script src="./mootools.js"></script>
+  <script src="./thenable.min.js"></script>
   <script src="./mootools-adapt-jquery.js"></script>
   <style>
     * { padding: 0; margin: 0; }
@@ -101,10 +102,10 @@
     console.assert(jQuery('#jsAppendChild2').length == 1, 'append 字符串，应该插入一个正确的孩子');
 
     $jsAppend.append('#jsAppendChild3');
-    console.assert($jsAppend.last().attr('id') == 'jsAppendChild3', 'append 参数是id时，插入不正确');
+    console.assert($jsAppend.children().last().attr('id') == 'jsAppendChild3', 'append 参数是id时，插入不正确');
 
     $jsAppend.append(jQuery('#jsAppendChild4'));
-    console.assert($jsAppend.last().attr('id') == 'jsAppendChild4', 'append 参数dom时，插入不正确');
+    console.assert($jsAppend.children().last().attr('id') == 'jsAppendChild4', 'append 参数dom时，插入不正确');
   </script>
 
   <h1>.wrap();<br> .unwrap();<br> .eq();<br> .parent();</h1>
@@ -212,5 +213,9 @@
     console.assert(jsFocus == 1, 'click 没有绑定成功，或者没有触发');
   </script>
 
+  <h1>内置方法测试</h1>
+  <script>
+
+  </script>
 </body>
 </html>

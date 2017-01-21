@@ -33,6 +33,10 @@
       WIN[add](pre + 'load', init, false);
     }
   }
+  function noop() {}
+  function toArray(args) {
+    return [].slice.call(args, 0);
+  }
 
   Function.implement({
     // 是否强制循环
@@ -82,7 +86,53 @@
   $extend(jQuery, {
     ready: function(fn) {
       fn && domReady(fn);
-    }
+    },
+    noop: noop,
+    Deferred: function(fn) {
+      var def = new Thenable(fn);
+      return $extend(def, {
+        done: function(f) { def.then(f, null); return def; },
+        fail: function(f) { def.then(null, f); return def; },
+        always: function(f) { def.then(f, f); return def; }
+      });
+    },
+    parseJSON: function(str) {
+      return JSON.decode(str);
+    },
+    param: function() {
+      // 仅兼容简单的转换
+      return Object.toQueryString.apply(Object, arguments);
+    },
+    trim: function(str) {
+      return (str || '').trim();
+    },
+    extend: function() {
+      var args = toArray(arguments);
+      var method = 'append';
+
+      // 深复制
+      if (args[0] === true) {
+        args.shift();
+        args.unshift({});
+        method = 'merge'
+      }
+
+      return Object[method].apply(Object, args);
+    },
+    type: function(obj) {
+      return typeOf(obj);
+    },
+    proxy: function(fn, ctx) {
+      var args = toArray(arguments).slice(2);
+      return function(){
+        return fn.apply(ctx, args.concat(toArray(arguments)));
+      };
+    },
+    // TODO AJAX 部分
+    ajax: function() {},
+    get: function() {},
+    post: function() {},
+    getJSON: function() {}
   });
 
   function jQueryAdapter(elements) {
@@ -98,7 +148,7 @@
       ctx[i] = elements[i];
     }
   }
-  var _proto_ = jQueryAdapter.prototype;
+  var _proto_ = jQuery.fn = jQueryAdapter.prototype;
 
   // 适配 jQuery 的列表
   function adaptList(data) {
@@ -281,7 +331,31 @@
       ctx.fireEvent(type, args);
       return ctx;
       // return this.fireEvent(type, args);
-    }
+    },
+
+    // TODO 辅助方法
+    show: function() {},
+    hide: function() {},
+    toggle: function() {},
+    animate: function() {},
+    is: function() {},
+    addClass: function() {},
+    removeClass: function() {},
+    hasClass: function() {},
+    toggleClass: function() {},
+    position: function() {},
+    offset: function() {},
+    width: function() {},
+    height: function() {},
+    outerWidth: function() {},
+    outerHeight: function() {},
+    scrollTop: function() {},
+    scrollLeft: function() {},
+    data: function() {},
+    empty: function() {},
+    index: function() {},
+    siblings: function() {},
+    replaceWith: function() {}
   };
   $extend(_proto_, adaptList(proto));
 
@@ -326,9 +400,31 @@
       });
       return jQuery(result);
     },
-    last: function(expr) {
-      var children = this.children(expr);
-      return jQuery(children[children.length - 1]);
+    last: function() {
+      return this.eq(-1);
+    },
+    first: function() {
+      return this.eq(0);
+    },
+    // TODO 其他方法
+    filter: function(fn) {
+      var result = [];
+      this.each(function(elem, index) {
+        if (fn.call(elem, index)) {
+          result.push(elem);
+        }
+      });
+      return jQuery(result);
+    },
+    map: function(fn) {
+      var result = [];
+      this.each(function(elem, index) {
+        result.push(fn.call(elem, index));
+      });
+      return jQuery(result);
+    },
+    toArray: function() {
+      return toArray(this);
     }
   });
 
