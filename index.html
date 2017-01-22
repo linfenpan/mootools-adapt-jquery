@@ -161,7 +161,7 @@
     console.assert($jsFinds.eq(0).siblings().length == 2, 'siblings()，获取的元素失败');
   </script>
 
-  <h1>.on();<br> .off();<br> .trigger();</h1>
+  <h1>.on();<br> .off();<br> .trigger();<br> 通过 e.stop() 来停止冒泡和默认事件，跟 mootools 保持一致</h1>
   <div id="jsEvent">
     <a href="javascript:;">点击</a>
   </div>
@@ -320,6 +320,25 @@
     console.assert(Object.keys($jsData.data()).length == 2, 'data() 不能正确返回dataset对象');
     console.assert(Object.keys($jsData.data({ age: 2 }).data()).length == 3, 'data(Object) 设置不正确');
     console.assert($jsData.data('age') === 2, 'data(key, value) 设置的值，读取之后不能更变');
+  </script>
+
+  <h1>.animate();<br> .stop();</h1>
+  <div id="jsAnimate" style="width:100px; height:100px; background:#98bf21;"></div>
+  <script>
+    jQuery('#jsAnimate').animate({
+      width: 150
+    }, 300);
+
+    // var $a = $('jsAnimate');
+    // var a = new Animate($a, {
+    //   css: {
+    //     width: 150,
+    //     height: 150
+    //   },
+    //   callback: function() {
+    //     console.log('被触发了');
+    //   }
+    // });
   </script>
 
   <h1>事件绑定</h1>

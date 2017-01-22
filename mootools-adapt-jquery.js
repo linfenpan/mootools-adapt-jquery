@@ -503,20 +503,161 @@
       return function(key, value) {
         return queryDataset(this, key, value);
       }
-    })(),
-
-    animate: function() {
-
-      return this;
-    },
-    // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
-    // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
-    stop: function(stopAll, gotoEnd) {
-
-      return this;
-    }
+    })()
   };
   $extend(_proto_, adaptList(proto));
+
+  // 动画拓展
+  (function() {
+    $extend(_proto_, adaptList({
+      animate: function(css, duration, callback, fn) {
+        var ctx = this;
+        ctx.$animations = ctx.$animations || [];
+
+        if ($type(css) === 'object') {
+          duration = duration || 300;
+          callback = callback || noop;
+          var animate = new Animate(ctx, {
+            duration: duration,
+            callback: callback,
+            css: css,
+            fn: fn
+          });
+        }
+
+        return ctx;
+      },
+      // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
+      // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
+      stop: function(stopAll, gotoEnd) {
+        return this;
+      }
+    }));
+
+    // 电脑 CPU 决定，setTimeout() 最快只能是 20ms
+    var BaseTime = 20;
+    function Animate(elem, options) {
+      var ctx = this;
+
+      options = Object.merge({
+        duration: 500,
+        // result 是return的结果
+        // currentTime 当前耗费的总时间
+        // beginValue 开始的值
+        // distanceValue 结束值 - 开始值
+        // totalTime 总共的耗时
+        fn: null,
+        css: {},
+        callback: function() {}
+      }, options || {});
+
+      ['duration', 'css', 'callback'].each(function(key) {
+        ctx[key] = options[key];
+      });
+
+      ctx.elem = elem;
+      ctx.fn = options.fn || function(result, currentTime, beginValue, distanceValue, totalTime) {
+        return beginValue + distanceValue * currentTime / totalTime;
+      };
+
+      // { width: [5, 'px'] }
+      ctx.oldCss = {};
+      ctx.isRunning = false;
+      ctx.index = 0;
+      ctx.count = ctx.duration / BaseTime;
+      ctx.timer = null;
+    }
+
+    Animate.prototype = {
+      set: function(property, now) {
+        this.elem.setStyle(property, now);
+      },
+
+      step: function() {
+        var ctx = this;
+        ctx.timer = setTimeout(function() {
+          var old = ctx.oldCss, css = ctx.css;
+          var elem = ctx.elem, fn = ctx.fn;
+          var index = ctx.index++;
+
+          Object.keys(css).each(function(key) {
+            var beginValue = old[key][0], endValue = css[key];
+            var val = fn(0, index * BaseTime, beginValue, endValue - beginValue, ctx.duration);
+            ctx.set(key, val + old[key][1]);
+          });
+
+          if (index >= ctx.count) {
+            ctx.callback();
+            ctx.isRunning = false;
+          } else {
+            ctx.step();
+          }
+        }, BaseTime);
+      },
+
+      start: function(css) {
+        var ctx = this;
+
+        if (ctx.isRunning) {
+          return ctx;
+        }
+        ctx.isRunning = true;
+
+        ctx.css = css || ctx.css;
+        ctx.oldCss = {};
+        Object.keys(ctx.css).each(function(key) {
+          var styles = ctx.elem.getStyle(key).match(/(-?\d*\.?\d*)(.*)/);
+          // 5px -> ["5px", "5", "px"]
+          ctx.oldCss[key] = [+styles[1], styles[2]];
+        });
+
+        ctx.index = 1;
+        ctx.step();
+
+        return ctx;
+      },
+
+      // 获取动画之前的样式
+      getOrignalCss: function() {
+        var ctx = this;
+        var oldCss = {};
+        Object.keys(ctx.oldCss).each(function(key) {
+          oldCss[key] = ctx.oldCss[key].join('');
+        });
+        return oldCss;
+      },
+
+      reset: function(css) {
+        var ctx = this.stop();
+        if (!css) {
+          css = ctx.getOrignalCss();
+        }
+
+        Object.keys(css).each(function(key) {
+          ctx.set(key, css[key]);
+        });
+
+        return ctx;
+      },
+
+      stop: function(gotoEnd) {
+        var ctx = this;
+        var isRunning = ctx.isRunning;
+
+        clearTimeout(ctx.timer);
+        ctx.isRunning = false;
+
+        if (isRunning) {
+          if (gotoEnd) {
+            ctx.reset(ctx.css);
+          }
+          ctx.callback();
+        }
+        return ctx;
+      }
+    };
+  })();
+
 
   // 方法注入
   var protoEvent = {};
