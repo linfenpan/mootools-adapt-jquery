@@ -37,6 +37,14 @@
   function toArray(args) {
     return [].slice.call(args, 0);
   }
+  function isJQueryInstance(obj) {
+    return obj instanceof jQueryAdapter;
+  }
+  function toCamelCase(str) {
+    return str.replace(/[\-_](\w)/g, function(str, key) {
+      return key.toUpperCase();
+    });
+  }
 
   Function.implement({
     // 是否强制循环
@@ -61,7 +69,7 @@
       if (expression.charAt(0) === '<' && expression.charAt(expression.length - 1) === '>'){
         expression = new Element('div', {
           html: expression
-        }).getFirst();
+        }).getChildren();
       }
     }
 
@@ -70,7 +78,7 @@
     }
 
     // Handle jQuery(expression) and jQuery(expression, context).
-    if (expression instanceof jQueryAdapter) {
+    if (isJQueryInstance(expression)) {
       element = expression;
     } else if (typeof expression === 'object') {
       element = _$$(expression);
@@ -136,7 +144,7 @@
   });
 
   function jQueryAdapter(elements) {
-    if (elements instanceof jQueryAdapter) {
+    if (isJQueryInstance(elements)) {
       return elements;
     }
 
@@ -279,6 +287,10 @@
     prevAll: function(expr) {
       return this.getAllPrevious(expr);
     }.breakSelf(),
+    siblings: function(expr) {
+      var $pt = this.getParent();
+      return $pt.getChildren(expr).erase(this);
+    }.breakSelf(),
 
     on: function(type, elem, func) {
       var ctx = this;
@@ -333,29 +345,176 @@
       // return this.fireEvent(type, args);
     },
 
-    // TODO 辅助方法
-    show: function() {},
-    hide: function() {},
-    toggle: function() {},
-    animate: function() {},
-    is: function() {},
-    addClass: function() {},
-    removeClass: function() {},
-    hasClass: function() {},
-    toggleClass: function() {},
-    position: function() {},
-    offset: function() {},
-    width: function() {},
-    height: function() {},
-    outerWidth: function() {},
-    outerHeight: function() {},
-    scrollTop: function() {},
-    scrollLeft: function() {},
-    data: function() {},
-    empty: function() {},
-    index: function() {},
-    siblings: function() {},
-    replaceWith: function() {}
+    show: function() {
+      this.setStyle('display', '');
+      return this;
+    },
+    hide: function() {
+      this.setStyle('display', 'none');
+      return this;
+    },
+    toggle: function() {
+      var ctx = this;
+      ctx.setStyle('display', ctx.getStyle('display') === 'none' ? '' : 'none');
+      return ctx;
+    },
+
+    is: function(expr) {
+      return this.match(expr);
+    },
+    addClass: function(cls) {
+      return this.addClass(cls);
+    },
+    removeClass: function(cls) {
+      return this.removeClass(cls);
+    },
+    hasClass: function(cls) {
+      return this.hasClass(cls);
+    },
+    toggleClass: function(cls) {
+      return this.toggleClass(cls);
+    },
+
+    width: function(width) {
+      var ctx = this;
+      if ($type(width)) {
+        return ctx.setStyle('width', width);
+      }
+      var outerWidth = ctx.getWidth();
+      var width = outerWidth - parseInt(ctx.getStyle('padding-left')) - parseInt(ctx.getStyle('padding-right'));
+      return width;
+    },
+    height: function(height) {
+      var ctx = this;
+      if ($type(height)) {
+        return ctx.setStyle('height', height);
+      }
+      var outerHeight = ctx.getHeight();
+      var height = outerHeight - parseInt(ctx.getStyle('padding-top')) - parseInt(ctx.getStyle('padding-bottom'));
+      return height;
+    },
+    outerWidth: function(width) {
+      return this.getWidth();
+    },
+    outerHeight: function(height) {
+      return this.getHeight();
+    },
+
+    position: function() {
+      var offset = this.getOffsets(),
+        ptOffset = this.getOffsetParent().getOffsets();
+      return { top: offset.y - ptOffset.y, left: offset.x - ptOffset.x };
+    },
+    offset: function() {
+      var offset = this.getOffsets();
+      return { top: offset.y, left: offset.x };
+    },
+
+    empty: function() {
+      return this.set('html', '');
+    },
+
+    replaceWith: function(elem) {
+      var ctx = this;
+      var elems = jQuery(elem), last;
+      elems.each(function(el, i) {
+        if (!last) {
+          ctx.getParent().replaceChild(el, ctx);
+        } else {
+          proto.after.call(last, el);
+        }
+        last = el;
+      });
+      return ctx;
+    },
+
+    appendTo: function(elem) {
+      var ctx = this, result = [];
+      var elems = jQuery(elem);
+
+      ctx.remove();
+      elems.each(function(el, i) {
+        var newNode = ctx.cloneNode(true);
+        proto.append.call(el, newNode);
+        result.push(newNode);
+      });
+
+      return result;
+    }.breakSelf(),
+
+    scrollTop: function(top) {
+      var ctx = this;
+      if ($type(top)) {
+        ctx.scrollTo(ctx.getScrollLeft(), top);
+        return ctx;
+      }
+      return ctx.getScrollTop();
+    },
+    scrollLeft: function(left) {
+      var ctx = this;
+      if ($type(left)) {
+        ctx.scrollTo(left, ctx.getScrollTop());
+        return ctx;
+      }
+      return ctx.getScrollLeft();
+    },
+
+    data: (function() {
+      function initDataset(elem) {
+        if (!elem.$dataset) {
+          elem.$dataset = {};
+        }
+        return elem.$dataset;
+      }
+
+      function datasetCombineWithAttr(elem) {
+        var attributes = elem.attributes;
+        for (var i = 0, max = attributes.length; i < max; i++) {
+          var attr = attributes[i];
+          var name = attributes[i].name;
+          if (name.indexOf('data-') == 0) {
+            var key = toCamelCase(name.split('data-')[1]), value = attr.value;
+            elem.$dataset[key] = value;
+          }
+        }
+        return elem.$dataset;
+      }
+
+      function queryDataset(elem, key, value) {
+        var typeKey = $type(key), typeValue = $type(value);
+        var dataset = elem.$dataset = initDataset(elem);
+
+        if (typeKey === 'object') {
+          var obj = key;
+          Object.keys(obj).each(function(k) {
+            dataset[k] = obj[k];
+          });
+          return elem;
+        } else if (typeKey === 'string') {
+          if (typeValue) {
+            dataset[key] = value;
+            return elem;
+          }
+          return elem.getAttribute('data-' + key) || dataset[key];
+        }
+        return datasetCombineWithAttr(elem);
+      }
+
+      return function(key, value) {
+        return queryDataset(this, key, value);
+      }
+    })(),
+
+    animate: function() {
+
+      return this;
+    },
+    // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
+    // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
+    stop: function(stopAll, gotoEnd) {
+
+      return this;
+    }
   };
   $extend(_proto_, adaptList(proto));
 
@@ -393,18 +552,25 @@
       }
       return jQuery(list[index]);
     },
+    last: function() {
+      return this.eq(-1);
+    },
+    first: function() {
+      return this.eq(0);
+    },
+    index: function(elem) {
+      if ($type(elem)) {
+        return toArray(this).indexOf(isJQueryInstance(elem) ? elem[0] : elem );
+      }
+      var ctx = jQuery(this[0]);
+      return toArray(ctx.parent().children()).indexOf(this[0]);
+    },
     children: function(expr) {
       var result = [];
       this.each(function(elem) {
         result.combine(elem.getChildren(expr) || []);
       });
       return jQuery(result);
-    },
-    last: function() {
-      return this.eq(-1);
-    },
-    first: function() {
-      return this.eq(0);
     },
     // TODO 其他方法
     filter: function(fn) {
