@@ -326,8 +326,10 @@
   <div id="jsAnimate" style="width:100px; height:100px; background:#98bf21;"></div>
   <script>
     jQuery('#jsAnimate').animate({
-      width: 150
-    }, 300);
+      width: 350
+    }, 500, function() {
+      console.log('动画运行正常');
+    });
 
     // var $a = $('jsAnimate');
     // var a = new Animate($a, {

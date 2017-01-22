@@ -512,7 +512,7 @@
     $extend(_proto_, adaptList({
       animate: function(css, duration, callback, fn) {
         var ctx = this;
-        ctx.$animations = ctx.$animations || [];
+        // ctx.$animations = ctx.$animations || [];
 
         if ($type(css) === 'object') {
           duration = duration || 300;
@@ -523,6 +523,8 @@
             css: css,
             fn: fn
           });
+          // ctx.$animations.push(animate);
+          animate.start();
         }
 
         return ctx;
@@ -568,9 +570,16 @@
       ctx.timer = null;
     }
 
+    var ElemProperties = 'scrollTop,scrollLeft'.split(',');
+
     Animate.prototype = {
       set: function(property, now) {
-        this.elem.setStyle(property, now);
+        var elem = this.elem;
+        if (ElemProperties.indexOf(property) >= 0) {
+          elem[property] = now;
+        } else {
+          elem.setStyle(property, now);
+        }
       },
 
       step: function() {
@@ -583,7 +592,7 @@
           Object.keys(css).each(function(key) {
             var beginValue = old[key][0], endValue = css[key];
             var val = fn(0, index * BaseTime, beginValue, endValue - beginValue, ctx.duration);
-            ctx.set(key, val + old[key][1]);
+            ctx.set(key, val + (old[key][1] || 0));
           });
 
           if (index >= ctx.count) {
@@ -606,7 +615,12 @@
         ctx.css = css || ctx.css;
         ctx.oldCss = {};
         Object.keys(ctx.css).each(function(key) {
-          var styles = ctx.elem.getStyle(key).match(/(-?\d*\.?\d*)(.*)/);
+          var styles;
+          if (ElemProperties.indexOf(key) >= 0) {
+            styles = [ctx.elem[key]];
+          } else {
+            styles = ctx.elem.getStyle(key).match(/(-?\d*\.?\d*)(.*)/);
+          }
           // 5px -> ["5px", "5", "px"]
           ctx.oldCss[key] = [+styles[1], styles[2]];
         });
