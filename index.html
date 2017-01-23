@@ -133,6 +133,9 @@
     console.assert($jsWraps2.parent().attr('id') === 'jsWrapA2', 'wrap(id)，出错');
     $jsWraps3.wrap(jQuery('#jsWrapA3'));
     console.assert($jsWraps3.parent().attr('id') === 'jsWrapA3', 'wrap(dom)，出错');
+
+    $jsWraps3.unwrap();
+    console.assert($jsWraps3.parent().attr('id') === 'jsWrap', 'unwrap()，出错');
   </script>
 
   <h1>.remove();</h1>
@@ -277,8 +280,9 @@
     console.assert($jsIndex.parent().children().index($jsIndex) == 1, 'index(jqDom) 获取索引不正确');
   </script>
 
-  <h1>.appendTo();</h1>
-  <div id="jsAppendTo">
+  <h1 class="test">.appendTo();</h1>
+  <span id="jsX" class="child1" data-x="555"></span>
+  <div id="jsAppendTo" class="test">
     <span class="child1">children1</span>
     <div class="pt"></div>
     <div class="pt"></div>
@@ -300,15 +304,16 @@
   </div>
   <script>
     var elScroll = document.getElementById('jsScroll');
-    elScroll.scrollTo(10, 15);
+    elScroll.scrollTop = 35;
+    elScroll.scrollLeft = 40;
 
     var $jsScroll = jQuery('#jsScroll');
-    console.assert($jsScroll.scrollTop() === 15, 'scrollTop() 值不正确');
-    console.assert($jsScroll.scrollLeft() === 10, 'scrollLeft() 值不正确');
+    console.assert($jsScroll.scrollTop() === 35, 'scrollTop() 值不正确');
+    console.assert($jsScroll.scrollLeft() === 40, 'scrollLeft() 值不正确');
 
-    $jsScroll.scrollTop(20).scrollLeft(15);
-    console.assert($jsScroll.scrollTop() === 20, 'scrollTop() 设置值不正确');
-    console.assert($jsScroll.scrollLeft() === 15, 'scrollLeft() 设置值不正确');
+    $jsScroll.scrollTop(40).scrollLeft(45);
+    console.assert($jsScroll.scrollTop() === 40, 'scrollTop() 设置值不正确');
+    console.assert($jsScroll.scrollLeft() === 45, 'scrollLeft() 设置值不正确');
   </script>
 
   <h1>.data()</h1>
@@ -323,25 +328,86 @@
   </script>
 
   <h1>.animate();<br> .stop();</h1>
-  <div id="jsAnimate" style="width:100px; height:100px; background:#98bf21;"></div>
+  <div id="jsAnimate1" style="width:100px; height:100px; background:#98bf21;"></div>
+  <div id="jsAnimate2" style="width:100px; height:100px; background:rgb(255,0,0);"></div>
+  <div id="jsAnimate3" style="width:100px; height:100px; background:#98bbaa;"></div>
   <script>
-    jQuery('#jsAnimate').animate({
-      width: 350
-    }, 500, function() {
-      console.log('动画运行正常');
+    var $jsAnimate1 = jQuery('#jsAnimate1');
+
+    var jsAnimateDef1 = jQuery.Deferred();
+    $jsAnimate1.animate({
+      width: 200
+    }, function() {
+      jsAnimateDef1.resolve();
+    });
+    var jsAnimateDef2 = jQuery.Deferred();
+    $jsAnimate1.animate({
+      height: 150
+    }, 1000, function() {
+      jsAnimateDef2.resolve();
     });
 
-    // var $a = $('jsAnimate');
-    // var a = new Animate($a, {
-    //   css: {
-    //     width: 150,
-    //     height: 150
-    //   },
-    //   callback: function() {
-    //     console.log('被触发了');
-    //   }
-    // });
+    setTimeout(function() {
+      $jsAnimate1.stop();
+      console.assert($jsAnimate1.height() !== 150, 'stop() 方法失败了');
+    }, 700);
+
+    var jsAnimateResult1 = 0;
+    jQuery.all(jsAnimateDef1, jsAnimateDef2).then(function() {
+      jsAnimateResult1 = 1;
+    });
+    setTimeout(function() {
+      console.assert(jsAnimateResult1 === 1, 'stop() 方法没有触发animate的回调');
+    }, 800);
+
+    var $jsAnimate2 = jQuery('#jsAnimate2');
+    $jsAnimate2.animate({
+      'background-color': '#000'
+    }, function() {
+      console.assert(this.getStyle('background-color') === '#000000', 'animate设置颜色，没有生效');
+    });
+
+    var $jsAnimate3 = jQuery('#jsAnimate3');
+    var jsAnimateDef3_1 = jQuery.Deferred();
+    var jsAnimateDef3_2 = jQuery.Deferred();
+    $jsAnimate3.animate({
+      'margin-left': 120
+    }, function() {
+      jsAnimateDef3_1.resolve();
+    }).animate({
+      width: 200
+    }, function() {
+      jsAnimateDef3_2.resolve();
+    });
+    $jsAnimate3.stop(1, 1);
+    var jsAnimate3Result = 0;
+    jQuery.all(jsAnimateDef3_1, jsAnimateDef3_2).then(function() {
+      jsAnimate3Result = 1;
+    });
+    setTimeout(function() {
+      console.assert(jsAnimate3Result == 1, 'stop(1, 1) 没有正确触发回调');
+    }, 50);
   </script>
+
+  <h1>.filter();<br> .map();<br> .toArray()</h1>
+  <div id="jsMap">
+    <span class="map map1" data-id="1"></span>
+    <span class="map map2 on" data-id="2"></span>
+    <span class="map map3" data-id="3"></span>
+    <span class="map map4" data-id="4"></span>
+    <span class="map map5" data-id="5"></span>
+  </div>
+  <script>
+    var $jsMap = jQuery('#jsMap').find('.map');
+    console.assert($type($jsMap.toArray()) === 'array', '.toArray() 不能正确返回数组');
+    console.assert($jsMap.filter('.on').length === 1, '.filter() 不能正常过滤元素');
+    var jsMap = $jsMap.map(function(elem) {
+      return elem.getAttribute('data-id');
+    });
+    console.assert($type(jsMap) === 'array', '.map() 必须返回数组');
+    console.assert(jsMap.length === $jsMap.length, '.map() 返回的长度不正确');
+  </script>
+
 
   <h1>事件绑定</h1>
   <div>

@@ -104,6 +104,8 @@
         always: function(f) { def.then(f, f); return def; }
       });
     },
+    all: Thenable.all,
+    race: Thenable.race,
     parseJSON: function(str) {
       return JSON.decode(str);
     },
@@ -257,10 +259,18 @@
 
       $wrap = $wrap.length ? $wrap[0] : $wrap;
       parentNode.replaceChild($wrap, this);
-      $wrap.append(this);
+      $wrap.appendChild(this);
 
       return this;
     },
+    unwrap: function() {
+      var ctx = this;
+      var pt = ctx.getParent(), top = pt.getParent();
+      top.replaceChild(ctx, pt);
+      pt.destroy();
+      return ctx;
+    },
+
     parent: function(expr) {
       return this.getParent(expr);
     }.breakSelf(),
@@ -273,7 +283,7 @@
     },
 
     find: function(expr) {
-      return this.getChildren(expr);
+      return this.getElements(expr);
     }.breakSelf(),
     next: function(expr) {
       return this.getNext(expr);
@@ -428,27 +438,36 @@
       return ctx;
     },
 
+    clone: function(withChildren) {
+      var ctx = this, newNode;
+      newNode = ctx.cloneNode(withChildren);
+      return newNode;
+    }.breakSelf(),
+
     appendTo: function(elem) {
       var ctx = this, result = [];
       var elems = jQuery(elem);
 
-      ctx.remove();
       elems.each(function(el, i) {
-        var newNode = ctx.cloneNode(true);
+        var newNode = proto.clone.call(ctx, true);
         proto.append.call(el, newNode);
         result.push(newNode);
       });
+      // 如果先调用删除，在 ie 下，元素的 class 将会丢失
+      proto.remove.call(ctx);
 
       return result;
     }.breakSelf(),
 
+    // uc 的 scrollTop 值，经常是 1.10002, 2.4444 之类的
     scrollTop: function(top) {
       var ctx = this;
       if ($type(top)) {
         ctx.scrollTo(ctx.getScrollLeft(), top);
         return ctx;
       }
-      return ctx.getScrollTop();
+      var top = ctx.getScrollTop();
+      return top - Math.floor(top) >= .1 ? Math.ceil(top) : Math.floor(top);
     },
     scrollLeft: function(left) {
       var ctx = this;
@@ -456,7 +475,8 @@
         ctx.scrollTo(left, ctx.getScrollTop());
         return ctx;
       }
-      return ctx.getScrollLeft();
+      var left = ctx.getScrollLeft();
+      return left - Math.floor(left) >= .1 ? Math.ceil(left) : Math.floor(left);
     },
 
     data: (function() {
@@ -512,52 +532,143 @@
     $extend(_proto_, adaptList({
       animate: function(css, duration, callback, fn) {
         var ctx = this;
-        // ctx.$animations = ctx.$animations || [];
-
+        var animations = ctx.$animations = ctx.$animations || new AnimateList(ctx);
         if ($type(css) === 'object') {
-          duration = duration || 300;
+          if ($type(duration) === 'function') {
+            fn = callback;
+            callback = duration;
+            duration = null;
+          }
           callback = callback || noop;
+          duration = duration || 300;
+
           var animate = new Animate(ctx, {
             duration: duration,
-            callback: callback,
+            callback: jQuery.proxy(callback, ctx),
             css: css,
             fn: fn
           });
-          // ctx.$animations.push(animate);
-          animate.start();
+          animations.push(animate);
         }
+        animations.start();
 
         return ctx;
       },
       // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
       // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
       stop: function(stopAll, gotoEnd) {
-        return this;
+        var ctx = this, animations = ctx.$animations;
+        animations && animations.stop(stopAll, gotoEnd);
+        return ctx;
       }
     }));
+
+    function AnimateList(elem) {
+      var ctx = this;
+      ctx.elem = elem;
+      ctx.list = [];
+      ctx.current = null; // 当前运行动画
+      ctx.isRunning = false;
+    }
+    AnimateList.prototype = {
+      push: function(animate) {
+        var ctx = this;
+        ctx.list.push(animate);
+        return ctx;
+      },
+      next: function() {
+        var ctx = this, animate = ctx.list.shift();
+        if (animate) {
+          ctx.current = animate;
+          animate.onEnd = function() {
+            ctx.next();
+          };
+          animate.start();
+        } else {
+          ctx.current = null;
+          ctx.isRunning = false;
+        }
+      },
+      start: function() {
+        var ctx = this;
+        if (ctx.isRunning) {
+          return ctx;
+        }
+        ctx.isRunning = true;
+        ctx.next();
+      },
+      stop: function(stopAll, gotoEnd) {
+        var ctx = this;
+        ctx.isRunning = false;
+
+        // 停止当前运行的
+        if (ctx.current) {
+          ctx.current.onEnd = function() {};
+          ctx.current.stop(gotoEnd);
+          ctx.current = null;
+        }
+
+        // 清空列表
+        if (stopAll) {
+          ctx.list.each(function(animate) {
+            animate.start();
+            animate.stop(gotoEnd);
+          });
+          ctx.list = [];
+        } else {
+          // 执行下一个动画
+          ctx.next();
+        }
+
+        return ctx;
+      }
+    };
+
+    function hexToRgb(str) {
+  		var hex = str.match(/^#?(\w{1,2})(\w{1,2})(\w{1,2})$/);
+      if (hex) {
+        var colors = hex.slice(1);
+    		var rgb = colors.map(function(value){
+    			if (value.length == 1) value += value;
+    			return value.toInt(16);
+    		});
+        return rgb;
+      }
+      return null;
+  	}
+
+    var Color = {
+  		parse: function(value){
+  			if (value.match(/^#[0-9a-f]{3,6}$/i)) return hexToRgb(value);
+  			return ((value = value.match(/(\d+),\s*(\d+),\s*(\d+)/))) ? [+value[1], +value[2], +value[3]] : false;
+  		},
+  		compute: function(from, to, delta){
+  			return from.map(function(value, i){
+  				return Math.round(Fx.compute(from[i], to[i], delta));
+  			});
+  		},
+      isColor: function(value) {
+        value = value + '';
+        return !!(value.match(/^#[0-9a-f]{3,6}$/i) || value.match(/(\d+),\s*(\d+),\s*(\d+)/));
+      }
+  	};
 
     // 电脑 CPU 决定，setTimeout() 最快只能是 20ms
     var BaseTime = 20;
     function Animate(elem, options) {
       var ctx = this;
-
-      options = Object.merge({
-        duration: 500,
-        // result 是return的结果
-        // currentTime 当前耗费的总时间
-        // beginValue 开始的值
-        // distanceValue 结束值 - 开始值
-        // totalTime 总共的耗时
-        fn: null,
-        css: {},
-        callback: function() {}
-      }, options || {});
-
-      ['duration', 'css', 'callback'].each(function(key) {
-        ctx[key] = options[key];
-      });
+      options = options || {};
 
       ctx.elem = elem;
+      ctx.duration = Math.max(options.duration || 0, BaseTime);
+      ctx.callback = options.callback || function() {};
+      ctx.css = options.css || {};
+
+      // result 是return的结果
+      // currentTime 当前耗费的总时间
+      // beginValue 开始的值
+      // distanceValue 结束值 - 开始值
+      // totalTime 总共的耗时
       ctx.fn = options.fn || function(result, currentTime, beginValue, distanceValue, totalTime) {
         return beginValue + distanceValue * currentTime / totalTime;
       };
@@ -566,13 +677,15 @@
       ctx.oldCss = {};
       ctx.isRunning = false;
       ctx.index = 0;
-      ctx.count = ctx.duration / BaseTime;
+      ctx.count = Math.max(1, ctx.duration / BaseTime);
       ctx.timer = null;
     }
 
     var ElemProperties = 'scrollTop,scrollLeft'.split(',');
 
     Animate.prototype = {
+      onEnd: function() {},
+
       set: function(property, now) {
         var elem = this.elem;
         if (ElemProperties.indexOf(property) >= 0) {
@@ -591,12 +704,25 @@
 
           Object.keys(css).each(function(key) {
             var beginValue = old[key][0], endValue = css[key];
-            var val = fn(0, index * BaseTime, beginValue, endValue - beginValue, ctx.duration);
-            ctx.set(key, val + (old[key][1] || 0));
+            if ($type(beginValue) === 'array') {
+              // 颜色，格式为 [244, 244, 244]
+              var val = [];
+              endValue = Color.parse(endValue);
+              beginValue.each(function(_beginValue, i) {
+                var _endValue = endValue[i];
+                val.push(
+                  fn(0, index * BaseTime, _beginValue, _endValue - _beginValue, ctx.duration)
+                );
+              });
+              ctx.set(key, 'rgb(' + val.join(',') + ')');
+            } else {
+              var val = fn(0, index * BaseTime, beginValue, endValue - beginValue, ctx.duration);
+              ctx.set(key, val + (old[key][1] || 0));
+            }
           });
 
           if (index >= ctx.count) {
-            ctx.callback();
+            ctx._doCallback();
             ctx.isRunning = false;
           } else {
             ctx.step();
@@ -616,13 +742,19 @@
         ctx.oldCss = {};
         Object.keys(ctx.css).each(function(key) {
           var styles;
+          // TODO 动画更好的方式，应该是建立3个不同的类别，对外提供更好的接口，现在先硬编一下
           if (ElemProperties.indexOf(key) >= 0) {
-            styles = [ctx.elem[key]];
+            ctx.oldCss[key] = [ctx.elem[key]];
           } else {
-            styles = ctx.elem.getStyle(key).match(/(-?\d*\.?\d*)(.*)/);
+            var value = ctx.elem.getStyle(key);
+            if (Color.isColor(value)) {
+              ctx.oldCss[key] = [Color.parse(value)];
+            } else {
+              styles = value.match(/(-?\d*\.?\d*)(.*)/);
+              // 5px -> ["5px", "5", "px"]
+              ctx.oldCss[key] = [+styles[1], styles[2]];
+            }
           }
-          // 5px -> ["5px", "5", "px"]
-          ctx.oldCss[key] = [+styles[1], styles[2]];
         });
 
         ctx.index = 1;
@@ -665,9 +797,15 @@
           if (gotoEnd) {
             ctx.reset(ctx.css);
           }
-          ctx.callback();
+          ctx._doCallback();
         }
         return ctx;
+      },
+
+      _doCallback: function() {
+        var ctx = this;
+        ctx.callback();
+        ctx.onEnd();
       }
     };
   })();
@@ -728,10 +866,10 @@
       return jQuery(result);
     },
     // TODO 其他方法
-    filter: function(fn) {
+    filter: function(expr) {
       var result = [];
-      this.each(function(elem, index) {
-        if (fn.call(elem, index)) {
+      this.each(function(elem) {
+        if (elem.match(expr)) {
           result.push(elem);
         }
       });
@@ -740,9 +878,9 @@
     map: function(fn) {
       var result = [];
       this.each(function(elem, index) {
-        result.push(fn.call(elem, index));
+        result.push(fn.call(elem, elem, index));
       });
-      return jQuery(result);
+      return result;
     },
     toArray: function() {
       return toArray(this);
