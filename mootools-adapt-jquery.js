@@ -137,12 +137,7 @@
       return function(){
         return fn.apply(ctx, args.concat(toArray(arguments)));
       };
-    },
-    // TODO AJAX 部分
-    ajax: function() {},
-    get: function() {},
-    post: function() {},
-    getJSON: function() {}
+    }
   });
 
   function jQueryAdapter(elements) {
@@ -894,6 +889,179 @@
       return toArray(this);
     }
   });
+
+  // ajax 部分
+  ;(function() {
+    var jsonpId = 1, jsonpKey = 'mquery_jsonp_';
+    function jsonp(params) {
+      var url = params.url, fnSuccess = params.success, fnError = params.error, fnComplete = params.complete;
+      var timeout = params.timeout;
+      var callback = jsonpKey + jsonpId++;
+      var isFinish = false;
+      var timer;
+
+      var script = new Element('script', {
+  			type: 'text/javascript',
+  			async: true,
+  			src: url.replace(/(\w+=)(\?)(&|$)/, '$1' + callback + '$3') + '&' + jQuery.param(params.data)
+  		});
+
+      function remove() {
+        clearTimeout(timer);
+        if (script) {
+          script.destroy();
+          script = null;
+        }
+      }
+
+      function cancel() {
+        remove();
+        if (!isFinish) {
+          isFinish = true;
+          fnError.call(ctx);
+          fnComplete.call(ctx);
+        }
+      }
+
+      var ctx = { cancel: cancel };
+
+      window[callback] = function() {
+        remove();
+        isFinish = true;
+        fnSuccess.apply(ctx, arguments);
+        fnComplete.apply(ctx, arguments);
+      };
+
+      if (timeout) {
+        timer = setTimeout(cancel, timeout);
+      }
+
+      script.inject(document.head || jQuery('head')[0]);
+
+      return ctx;
+    }
+
+    function ajax(url, settings) {
+      var deferred = jQuery.Deferred();
+      var xhr;
+
+      if ($type(url) === 'object') {
+        settings = url;
+        url = null;
+      }
+      settings = $extend({
+        url: url || '',
+        beforeSend: noop,
+        success: noop,
+        error: noop,
+        complete: noop,
+
+        async: true,
+        type: 'get',
+        timeout: 0,
+        cache: true,
+        headers: {
+    			'Accept': 'text/javascript, text/html, application/xml, text/xml, */*'
+    		},
+        data: {},
+        crossDomain: null
+      }, settings || {});
+
+      // 绑定 deferred 操作
+      [
+        ['success', 'resolve'],
+        ['error', 'reject']
+      ].each(function(list) {
+        var key = list[0], defKey = list[1];
+        var fn = settings[key];
+        settings[key] = function() {
+          deferred[defKey](arguments[0]);
+          fn.apply(xhr, arguments);
+        }
+      });
+
+      if (/\w+=\?(&|$)/.test(settings.url)) {
+        // 走 jsonp
+        xhr = jsonp(settings);
+      } else {
+        // 走 XMLHttpRequest
+        // 检查是否跨域
+        var originAnchor = document.createElement( "a" );
+        originAnchor.href = location.href;
+        if (settings.crossDomain == null) {
+          var urlAnchor = document.createElement( "a" );
+          // Support: IE <=8 - 11, Edge 12 - 13
+          // IE throws exception on accessing the href property if url is malformed,
+          // e.g. http://example.com:80x/
+          try {
+            urlAnchor.href = s.url;
+            // Support: IE <=8 - 11 only
+            // Anchor's host property isn't correctly set when s.url is relative
+            urlAnchor.href = urlAnchor.href;
+            settings.crossDomain = originAnchor.protocol + "//" + originAnchor.host !==
+              urlAnchor.protocol + "//" + urlAnchor.host;
+          } catch ( e ) {
+            // If there is an error parsing the URL, assume it is crossDomain,
+            // it can be rejected by the transport if it is invalid
+            settings.crossDomain = true;
+          }
+        }
+        if (!settings.crossDomain && !settings.headers['X-Requested-With']) {
+          settings.headers['X-Requested-With'] = 'XMLHttpRequest';
+        }
+
+        var params = $extend({}, Request.prototype.options);
+        $extend(params, (function() {
+          var result = {};
+          var map = {
+            url: 'url',
+            data: 'data',
+            timeout: 'timeout',
+            beforeSend: 'onRequest',
+            success: 'onSuccess',
+            error: 'onFailure,onCancel,onTimeout',
+            complete: 'onComplete',
+            type: 'method',
+            cache: 'noCache'
+          };
+          Object.keys(map).each(function(key) {
+            var str = map[key];
+            str.split(',').each(function(k) {
+              result[k] = settings[key];
+            });
+          });
+
+          return result;
+        })());
+        xhr = new Request(params);
+        xhr.headers = settings.headers;
+        xhr.send();
+      }
+
+      return $extend(xhr, {
+        abort: function() { return xhr.cancel(); },
+        always: jQuery.proxy(deferred.always, deferred),
+        done: jQuery.proxy(deferred.done, deferred),
+        fail: jQuery.proxy(deferred.fail, deferred),
+        state: function() { return deferred.state; }
+      });
+    }
+
+    var ajaxProto = {
+      ajax: ajax,
+      get: function(url, data, callback) {
+        return ajaxProto.ajax(url, { method: 'GET', data: data || {}, success: callback || noop });
+      },
+      post: function(url, data, callback) {
+        return ajaxProto.ajax(url, { method: 'POST', data: data || {}, success: callback || noop });
+      },
+      getJSON: function(url, data, callback) {
+        return ajaxProto.ajax(url, { method: 'GET', data: data || {}, success: callback || noop });
+      }
+    };
+
+    $extend(jQuery, ajaxProto);
+  })();
 
   WIN[NAME] = jQuery;
 })(window, $, $$, window.JQUERY_NAME || 'jQuery');
