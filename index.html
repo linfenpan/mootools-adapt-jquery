@@ -331,6 +331,7 @@
   <div id="jsAnimate1" style="width:100px; height:100px; background:#98bf21;"></div>
   <div id="jsAnimate2" style="width:100px; height:100px; background:rgb(255,0,0);"></div>
   <div id="jsAnimate3" style="width:100px; height:100px; background:#98bbaa;"></div>
+  <div id="jsAnimate4" style="width:100px; height:100px; background:#66bbaa;"></div>
   <script>
     var $jsAnimate1 = jQuery('#jsAnimate1');
 
@@ -387,6 +388,15 @@
     setTimeout(function() {
       console.assert(jsAnimate3Result == 1, 'stop(1, 1) 没有正确触发回调');
     }, 50);
+
+    var $jsAnimate4 = jQuery('#jsAnimate4');
+    $jsAnimate4.delay(1000).animate({ width: 50 }, 500).delay(1000).animate({ width: 150 }, 500);
+    setTimeout(function() {
+      console.assert($jsAnimate4.width() === 100, '.delay() 放在 .animate() 其前面，没有生效');
+    }, 500);
+    setTimeout(function() {
+      console.assert($jsAnimate4.width() === 50, '.delay() 放在 .animate() 后面，没有生效');
+    }, 2000);
   </script>
 
   <h1>.filter();<br> .map();<br> .toArray()</h1>

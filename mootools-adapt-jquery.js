@@ -529,7 +529,7 @@
 
   // 动画拓展
   (function() {
-    $extend(_proto_, adaptList({
+    var protoAnimate = {
       animate: function(css, duration, callback, fn) {
         var ctx = this;
         var animations = ctx.$animations = ctx.$animations || new AnimateList(ctx);
@@ -554,6 +554,13 @@
 
         return ctx;
       },
+      delay: function(time) {
+        var ctx = this;
+        if ($type(time) === 'number') {
+          protoAnimate.animate.call(ctx, {}, time);
+        }
+        return ctx;
+      },
       // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
       // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
       stop: function(stopAll, gotoEnd) {
@@ -561,7 +568,8 @@
         animations && animations.stop(stopAll, gotoEnd);
         return ctx;
       }
-    }));
+    };
+    $extend(_proto_, adaptList(protoAnimate));
 
     function AnimateList(elem) {
       var ctx = this;
