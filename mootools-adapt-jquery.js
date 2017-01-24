@@ -868,7 +868,6 @@
       });
       return jQuery(result);
     },
-    // TODO 其他方法
     filter: function(expr) {
       var result = [];
       this.each(function(elem) {
@@ -895,10 +894,8 @@
     var jsonpId = 1, jsonpKey = 'mquery_jsonp_';
     function jsonp(params) {
       var url = params.url, fnSuccess = params.success, fnError = params.error, fnComplete = params.complete;
-      var timeout = params.timeout;
       var callback = jsonpKey + jsonpId++;
       var isFinish = false;
-      var timer;
 
       var script = new Element('script', {
   			type: 'text/javascript',
@@ -907,7 +904,6 @@
   		});
 
       function remove() {
-        clearTimeout(timer);
         if (script) {
           script.destroy();
           script = null;
@@ -932,10 +928,6 @@
         fnComplete.apply(ctx, arguments);
       };
 
-      if (timeout) {
-        timer = setTimeout(cancel, timeout);
-      }
-
       script.inject(document.head || jQuery('head')[0]);
 
       return ctx;
@@ -958,27 +950,55 @@
 
         async: true,
         type: 'get',
-        timeout: 0,
         cache: true,
         headers: {
     			'Accept': 'text/javascript, text/html, application/xml, text/xml, */*'
     		},
         data: {},
-        crossDomain: null
+        crossDomain: null,
+        timeout: 0,
+        dataFilter: function(data, dataType) {
+          if (dataType === 'json') {
+            try {
+              data = JSON.decode(data);
+            } catch (e) {
+              settings.error(e);
+            }
+          }
+          return data;
+        },
+        dataType: 'text'
       }, settings || {});
 
-      // 绑定 deferred 操作
-      [
-        ['success', 'resolve'],
-        ['error', 'reject']
-      ].each(function(list) {
-        var key = list[0], defKey = list[1];
-        var fn = settings[key];
-        settings[key] = function() {
-          deferred[defKey](arguments[0]);
-          fn.apply(xhr, arguments);
+      // 超时处理
+      var timer, isTimeout = false;
+      var timeout = settings.timeout;
+      if (timeout) {
+        timer = setTimeout(function() {
+          isTimeout = true;
+          xhr.abort();
+        }, timeout);
+      }
+
+      // 绑定 deferred，错误超时等
+      var fnSuccess = settings.success;
+      settings.success = function(data) {
+        clearTimeout(timer);
+        data = settings.dataFilter(data, settings.dataType);
+        deferred.resolve(data);
+        fnSuccess.call(null, data);
+      };
+      var fnError = settings.error;
+      settings.error = function(data) {
+        clearTimeout(timer);
+        deferred.reject(isTimeout ? xhr : data);
+        var params = [data, xhr];
+        if (isTimeout) {
+          xhr.isTimeout = isTimeout;
+          params = [xhr];
         }
-      });
+        fnError.apply(null, params);
+      };
 
       if (/\w+=\?(&|$)/.test(settings.url)) {
         // 走 jsonp
@@ -1010,13 +1030,13 @@
           settings.headers['X-Requested-With'] = 'XMLHttpRequest';
         }
 
+        // 适配 mootools Request 的参数
         var params = $extend({}, Request.prototype.options);
         $extend(params, (function() {
           var result = {};
           var map = {
             url: 'url',
             data: 'data',
-            timeout: 'timeout',
             beforeSend: 'onRequest',
             success: 'onSuccess',
             error: 'onFailure,onCancel,onTimeout',
@@ -1049,14 +1069,22 @@
 
     var ajaxProto = {
       ajax: ajax,
-      get: function(url, data, callback) {
-        return ajaxProto.ajax(url, { method: 'GET', data: data || {}, success: callback || noop });
+      get: function(url, data, callback, dataType) {
+        if (typeof callback === 'string') {
+          dataType = callback;
+          callback = null;
+        }
+        return ajaxProto.ajax(url, { method: 'GET', data: data || {}, success: callback || noop, dataType: dataType || 'text' });
       },
-      post: function(url, data, callback) {
-        return ajaxProto.ajax(url, { method: 'POST', data: data || {}, success: callback || noop });
+      post: function(url, data, callback, dataType) {
+        if (typeof callback === 'string') {
+          dataType = callback;
+          callback = null;
+        }
+        return ajaxProto.ajax(url, { method: 'POST', data: data || {}, success: callback || noop, dataType: dataType || 'text' });
       },
       getJSON: function(url, data, callback) {
-        return ajaxProto.ajax(url, { method: 'GET', data: data || {}, success: callback || noop });
+        return ajaxProto.ajax(url, { method: 'GET', data: data || {}, success: callback || noop, dataType: 'json' });
       }
     };
 

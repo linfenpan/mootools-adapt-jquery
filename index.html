@@ -418,6 +418,153 @@
     console.assert(jsMap.length === $jsMap.length, '.map() 返回的长度不正确');
   </script>
 
+  <h1>.ajax();<br> .get();<br> .post();<br> .getJSON();</h1>
+  <script>
+    var ajaxUrl = 'http://localhost:3001';
+    var ajaxId = 0;
+    jQuery.ajax(ajaxUrl).always(function(state) {
+      ajaxId = 1;
+      console.assert(state === 'ok', '服务器没有开启');
+      if (state !== 'ok') {return;}
+
+      var xhr1 = jQuery.ajax({
+        url: ajaxUrl + '/json',
+        success: function(data) {
+          console.assert(typeof data === 'object', 'dataType: json，应该自动转换为 json 对象');
+        },
+        dataType: 'json'
+      });
+
+      var xhr2_id = 0;
+      var xhr2 = jQuery.ajax({
+        url: ajaxUrl + '/json',
+        success: function(data) {
+          console.error('不应该进入这个流程');
+        },
+        error: function(data) {
+          xhr2_id++;
+          console.assert(!data, '请求被取消，不应该有任何参数');
+        },
+        dataType: 'json'
+      });
+      xhr2.abort();
+      xhr2.abort();
+      console.assert(xhr2_id === 1, '请求被取消，应该立刻返回，并且不该触发两次 error 回调');
+
+      var xhr3 = jQuery.ajax({
+        url: ajaxUrl + '/error',
+        success: function() {
+          console.error('不应该进入成功回调');
+        },
+        error: function(err) {
+          console.assert(err && err.responseText == 'request error', '返回的错误对象，应该是 xhr 对象');
+        }
+      });
+
+      var xhr4 = jQuery.ajax({
+        url: ajaxUrl + '/html',
+        success: function(html) {
+          console.assert(typeof html === 'string', '请求应该返回纯文本');
+        },
+        dataType: 'html'
+      });
+
+      var xhr5_id = 0;
+      var xhr5 = jQuery.ajax({
+        url: ajaxUrl + '/html',
+        success: function(html) {
+          console.assert(typeof html === 'string', '请求应该返回纯文本');
+        },
+        dataType: 'html'
+      }).done(function(html) {
+        xhr5_id++;
+        console.assert(typeof html === 'string', 'done 接受到的参数，不正确');
+      }).fail(function() {
+        console.error('不应该进入这个逻辑的');
+      }).always(function(html) {
+        xhr5_id++;
+        console.assert(typeof html === 'string', 'always 接受到的参数，不正确');
+      });
+      setTimeout(function() {
+        console.assert(xhr5_id === 2, 'done 和 always 的逻辑，应该都要进入');
+      }, 1000);
+    });
+    setTimeout(function() {
+      console.assert(ajaxId === 1, '.ajax() 没能正常执行');
+    }, 1000);
+
+    var xhr6_id = 0;
+    var xhr6 = jQuery.ajax({
+      url: ajaxUrl + '/error',
+      error: function() {
+        xhr6_id++;
+      }
+    }).fail(function() {
+      xhr6_id++;
+    }).always(function() {
+      xhr6_id++;
+    });
+    setTimeout(function() {
+      console.assert(xhr6_id === 3, '请求产生错误时， error 相关的流程，没有触发');
+    }, 1000);
+
+    var xhr7 = jQuery.ajax({
+      url: ajaxUrl + '/timeout',
+      success: function() {
+        console.error('不该进入这个逻辑');
+      },
+      error: function(err) {
+        console.assert(err, '超时应该返回 XMLHTTPRequest 对象');
+      },
+      timeout: 1000
+    });
+
+    var xhr8_id = 0;
+    var xhr8 = jQuery.post(ajaxUrl + '/submit', { data: 'xxx' }, function(data) {
+      xhr8_id++;
+      console.assert(typeof data === 'object' && data.data === 'xxx', '.post() 的 dataType 参数，没有效果');
+    }, 'json').done(function() {
+      xhr8_id++;
+    });
+    setTimeout(function() {
+      console.assert(xhr8_id === 2, '.post() 的成功回调，没有完全执行');
+    }, 1000);
+
+    var xhr9_id = 0;
+    var xhr9 = jQuery.get(ajaxUrl + '/submit', { data: 'xxx' }, function(data) {
+      xhr9_id++;
+      console.assert(typeof data === 'object' && data.data === 'xxx', '.get() 的 dataType 参数，没有效果');
+    }, 'json').done(function() {
+      xhr9_id++;
+    });
+    setTimeout(function() {
+      console.assert(xhr9_id === 2, '.get() 的成功回调，没有完全执行');
+    }, 1000);
+
+    var xhr10_id = 0;
+    var xhr10 = jQuery.getJSON(ajaxUrl + '/submit', { data: 'xxx' }, function(data) {
+      xhr10_id++;
+      console.assert(typeof data === 'object' && data.data === 'xxx', '.getJSON() 的 dataType 参数，没有效果');
+    }, 'json').done(function() {
+      xhr10_id++;
+    });
+    setTimeout(function() {
+      console.assert(xhr10_id === 2, '.getJSON() 的成功回调，没有完全执行');
+    }, 1000);
+
+    var xhr11_id = 0;
+    var xhr11 = jQuery.get(ajaxUrl + '/jsonp?callback=?', {}, function(data) {
+      xhr11_id++;
+      console.assert(typeof data === 'object' && data.name === 'da宗熊', 'jsonp返回的数据不正确');
+    }).done(function(data) {
+      xhr11_id++;
+      console.assert(typeof data === 'object' && data.name === 'da宗熊', 'jsonp返回的数据不正确');
+    });
+    setTimeout(function() {
+      console.assert(xhr11_id === 2, 'jsonp 的成功回调，没有完全执行');
+    }, 1000);
+  </script>
+
 
   <h1>事件绑定</h1>
   <div>
