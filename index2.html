@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>给 mootools 拓展 jQuery 的一些语法</title>
+  <script src="./mootools.js"></script>
+  <script src="./mootools-jquery-api.js"></script>
+
+  <script src="./thenable.min.js"></script>
+  <style>
+    * { padding: 0; margin: 0; }
+    h1 { margin-top: 20px; }
+    h1:first-child { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>DOM Ready</h1>
+  <script>
+    var domready = 1;
+    $.ready(function() {
+      domready = 2;
+    });
+    setTimeout(function() {
+      console.assert(domready === 2, '应该运行domready方法');
+    }, 1000);
+  </script>
+
+  <h1 id="jsAttr">.attr('href');</h1>
+  <script>
+    var $jsAttr = $('jsAttr');
+    $jsAttr.attr('href', 'test');
+    console.assert($jsAttr.attr('href') == 'test', '属性值，应该是 test ');
+    $jsAttr.removeAttr('href');
+    console.assert($jsAttr.attr('href') == null, '删除的属性，应该不存在');
+  </script>
+
+  <h1>.html()</h1>
+  <div id="jsHtml">
+    <span>1</span>
+    &nbsp;|&nbsp;
+    <span>3</span>
+    &nbsp;|&nbsp;
+    <span>2</span>
+  </div>
+  <script>
+    var $jsHtml = $$('#jsHtml span')[0];
+    console.assert($jsHtml.html() == 1, 'html的值，应该等于1');
+    $jsHtml.html('333');
+    console.assert($jsHtml.html() == 333, 'html的值，应该变成333');
+  </script>
+
+  <h1>.text()</h1>
+  <div id="jsText">
+    <span>1</span>
+    &nbsp;|&nbsp;
+    <span>3</span>
+    &nbsp;|&nbsp;
+    <span>2</span>
+  </div>
+  <script>
+    var $jsText = $$('#jsText span')[0];
+    console.assert($jsText.text() == 1, 'text的值，应该等于1');
+    $jsText.text('333');
+    console.assert($jsText.text() == 333, 'text的值，应该变成333');
+  </script>
+
+  <h1>.val();<br> .css();</h1>
+  <div id="jsVal" style="width: 300px;">
+    <input type="text" value="1" style="width:20px;" />
+    &nbsp;|&nbsp;
+    <input type="text" value="2" style="width:20px;" />
+    &nbsp;|&nbsp;
+    <input type="text" value="3" style="width:20px;" />
+  </div>
+  <script>
+    var $jsVals = $$('#jsVal input')[0];
+    console.assert($jsVals.val() == 1, 'val的值，应该等于1');
+    $jsVals.val('4');
+    console.assert($jsVals.val() == 4, 'val的值，应该变成4');
+
+    var $jsVal = $('jsVal');
+    console.assert($jsVal.css('width') == '300px', '.css("width")，获取宽度失败');
+    $jsVal.css('width', 500);
+    console.assert($jsVal.css('width') == '500px', '.css("width", 500)，设置宽度失败');
+    $jsVal.css({ width: 300 });
+    console.assert($jsVal.css('width') == '300px', '.css({width: 300})，设置宽度失败');
+  </script>
+
+  <h1>.show();<br> .hide(); <br> .jsToggle();</h1>
+  <div id="jsToggle"></div>
+  <script>
+    var $jsToggle = $('jsToggle');
+    $jsToggle.hide();
+    console.assert($jsToggle.css('display') === 'none', 'hide() 方法没能隐藏元素');
+    $jsToggle.show();
+    console.assert($jsToggle.css('display') !== 'none', 'show() 方法没能显示元素');
+    $jsToggle.toggle();
+    console.assert($jsToggle.css('display') === 'none', 'toggle() 方法没能隐藏元素');
+    $jsToggle.toggle();
+    console.assert($jsToggle.css('display') !== 'none', 'toggle() 方法没能显示元素');
+  </script>
+
+  <h1>.width();<br> .height();<br> .outerWidth();<br> .outerHeight();</h1>
+  <div id="jsWH" style="width: 100px; height: 150px; padding: 25px;"></div>
+  <script>
+    var $jsWH = $('jsWH');
+    console.assert($jsWH.width() == 100, 'width() 获取宽度不正确');
+    console.assert($jsWH.height() == 150, 'height() 获取高度不正确');
+
+    $jsWH.width(50);
+    $jsWH.height(100);
+    console.assert($jsWH.width() == 50, 'width(x) 设置宽度不正确');
+    console.assert($jsWH.height() == 100, 'height(x) 设置高度不正确');
+
+    console.assert($jsWH.outerWidth() == 100, 'outerWidth() 获取宽度不正确');
+    console.assert($jsWH.outerHeight() == 150, 'outerHeight() 获取高度不正确');
+  </script>
+
+  <h1>.position();<br> .offset();</h1>
+  <div id="jsPF" style="position: relative; margin: 10px; width: 100px; height: 100px;">
+    <span id="jsPF1" style="position: absolute; top: 10px; left: 15px; width: 10px; height: 10px; background: #666;"></span>
+  </div>
+  <script>
+    var $jsPF = $('jsPF'),
+      $jsPF1 = $('jsPF1');
+    console.assert($jsPF1.position().top == 10 && $jsPF1.position().left == 15, 'position() 获取到的位置不正确');
+    console.assert($jsPF1.offset().left == 25, 'offset() 获取不到正确的值');
+  </script>
+
+  <h1>.data()</h1>
+  <div id="jsData" data-name="test"></div>
+  <script>
+    var $jsData = $('jsData');
+    console.assert($jsData.data('name') == 'test', 'data(name) 不能正确获取到属性');
+    console.assert($jsData.data('id', 1).data('id') == 1, 'data(key, value) 不能正确设置值');
+    console.assert(Object.keys($jsData.data()).length == 2, 'data() 不能正确返回dataset对象');
+    console.assert(Object.keys($jsData.data({ age: 2 }).data()).length == 3, 'data(Object) 设置不正确');
+    console.assert($jsData.data('age') === 2, 'data(key, value) 设置的值，读取之后不能更变');
+  </script>
+
+  <h1>.index();</h1>
+  <div>
+    <br/>
+    <span id="jsIndex"></span>
+  </div>
+  <script>
+    var $jsIndex = $('jsIndex');
+    console.assert($jsIndex.index() == 1, 'index() 获取到的索引不正确');
+
+    var $jsIndexParent = $jsIndex.getParent();
+    console.assert($jsIndexParent.index($jsIndex) == 1, 'index($elem) 获取到的索引不正确');
+  </script>
+
+  <h1>.animate();<br> .stop();</h1>
+  <div id="jsAnimate1" style="width:100px; height:100px; background:#98bf21;"></div>
+  <div id="jsAnimate2" style="width:100px; height:100px; background:rgb(255,0,0);"></div>
+  <div id="jsAnimate3" style="width:100px; height:100px; background:#98bbaa;"></div>
+  <div id="jsAnimate4" style="width:100px; height:100px; background:#66bbaa;"></div>
+  <script>
+    var $jsAnimate1 = $('jsAnimate1');
+
+    var jsAnimateDef1 = new Thenable();
+    $jsAnimate1.animate({
+      width: 200
+    }, function() {
+      jsAnimateDef1.resolve();
+    });
+    var jsAnimateDef2 = new Thenable();
+    $jsAnimate1.animate({
+      height: 150
+    }, 1000, function() {
+      jsAnimateDef2.resolve();
+    });
+
+    setTimeout(function() {
+      $jsAnimate1.stop();
+      console.assert($jsAnimate1.height() !== 150, 'stop() 方法失败了');
+    }, 700);
+
+    var jsAnimateResult1 = 0;
+    Thenable.all(jsAnimateDef1, jsAnimateDef2).then(function() {
+      jsAnimateResult1 = 1;
+    });
+    setTimeout(function() {
+      console.assert(jsAnimateResult1 === 1, 'stop() 方法没有触发animate的回调');
+    }, 800);
+
+    var $jsAnimate2 = $('jsAnimate2');
+    $jsAnimate2.animate({
+      'background-color': '#000'
+    }, function() {
+      console.assert(this.getStyle('background-color') === '#000000', 'animate设置颜色，没有生效');
+    });
+
+    var $jsAnimate3 = $('jsAnimate3');
+    var jsAnimateDef3_1 = new Thenable();
+    var jsAnimateDef3_2 = new Thenable();
+    $jsAnimate3.animate({
+      'margin-left': 120
+    }, function() {
+      jsAnimateDef3_1.resolve();
+    }).animate({
+      width: 200
+    }, function() {
+      jsAnimateDef3_2.resolve();
+    });
+    $jsAnimate3.stop(1, 1);
+    var jsAnimate3Result = 0;
+    Thenable.all(jsAnimateDef3_1, jsAnimateDef3_2).then(function() {
+      jsAnimate3Result = 1;
+    });
+    setTimeout(function() {
+      console.assert(jsAnimate3Result == 1, 'stop(1, 1) 没有正确触发回调');
+    }, 50);
+
+    var $jsAnimate4 = $('jsAnimate4');
+    $jsAnimate4.delay(1000).animate({ width: 50 }, 500).delay(1000).animate({ width: 150 }, 500);
+    setTimeout(function() {
+      console.assert($jsAnimate4.width() === 100, '.delay() 放在 .animate() 其前面，没有生效');
+    }, 500);
+    setTimeout(function() {
+      console.assert($jsAnimate4.width() === 50, '.delay() 放在 .animate() 后面，没有生效');
+    }, 2000);
+  </script>
+</body>
+</html>

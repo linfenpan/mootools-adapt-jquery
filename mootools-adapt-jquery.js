@@ -347,21 +347,36 @@
       }
       ctx.fireEvent(type, args);
       return ctx;
-      // return this.fireEvent(type, args);
     },
 
     show: function() {
-      this.setStyle('display', '');
-      return this;
+      var $el = this;
+      var display = $el.getStyle('display');
+      if (display === 'none') {
+        // 如果一开始，就是隐藏的元素，应该找到它正确的 display 值
+        $el.setStyle('display', '');
+        display = $el.getStyle('display');
+
+        // 真正显示
+        var map = $el.retrieve('$show', { value: display });
+        $el.setStyle('display', map.value);
+      }
+      return $el;
     },
     hide: function() {
-      this.setStyle('display', 'none');
-      return this;
+      var $el = this;
+      var display = $el.getStyle('display');
+      if (display !== 'none') {
+        var map = $el.retrieve('$show', { value: display });
+        $el.setStyle('display', 'none');
+      }
+      return $el;
     },
     toggle: function() {
-      var ctx = this;
-      ctx.setStyle('display', ctx.getStyle('display') === 'none' ? '' : 'none');
-      return ctx;
+      var $el = this;
+      var display = $el.getStyle('display');
+      proto[display === 'none' ? 'show' : 'hide'].call($el)
+      return $el;
     },
 
     is: function(expr) {
@@ -869,10 +884,20 @@
       return jQuery(result);
     },
     filter: function(expr) {
-      var result = [];
-      this.each(function(elem) {
-        if (elem.match(expr)) {
-          result.push(elem);
+      var result = [], type = $type(expr);
+      this.each(function(elem, index) {
+        switch (type) {
+          case 'string':
+            if (elem.match(expr)) {
+              result.push(elem);
+            }
+            break;
+          case 'function':
+            var res = expr.call(elem, elem, index);
+            if (res) {
+              result.push(elem);
+            }
+            break;
         }
       });
       return jQuery(result);

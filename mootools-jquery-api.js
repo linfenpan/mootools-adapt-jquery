@@ -1,19 +1,18 @@
 'use strict';
-// 给 mootools 模拟 jquery 的语法糖
-(function(WIN, _$, _$$, NAME) {
-  var DOC = window.document;
+;(function(win) {
+  var doc = win.document;
 
   function domReady (fn) {
     var done = false, top=true,
-      doc = WIN.document, root = DOC.documentElement,
-      add = DOC.addEventListener ? 'addEventListener' : 'attachEvent',
-      rem = DOC.addEventListener ? 'removeEventListener' : 'detachEvent',
-      pre = DOC.addEventListener ? '' : 'on',
+      doc = win.document, root = doc.documentElement,
+      add = doc.addEventListener ? 'addEventListener' : 'attachEvent',
+      rem = doc.addEventListener ? 'removeEventListener' : 'detachEvent',
+      pre = doc.addEventListener ? '' : 'on',
 
       init = function(e) {
-        if(e.type == 'readystatechange' && DOC.readyState != 'complete') return;
-        (e.type == 'load' ? WIN : DOC)[rem](pre + e.type, init, false);
-        if(!done && (done=true)) fn.call(WIN, e.type || e);
+        if(e.type == 'readystatechange' && doc.readyState != 'complete') return;
+        (e.type == 'load' ? win : doc)[rem](pre + e.type, init, false);
+        if(!done && (done=true)) fn.call(win, e.type || e);
       },
 
       poll = function() {
@@ -21,80 +20,51 @@
         init('poll');
       };
 
-    if(DOC.readyState == 'complete') {
-      fn.call(WIN, 'lazy');
+    if(doc.readyState == 'complete') {
+      fn.call(win, 'lazy');
     } else {
-      if(DOC.createEventObject && root.doScroll) {
+      if(doc.createEventObject && root.doScroll) {
         try {top =! win.frameElement;} catch(e) {}
         if(top) poll();
       }
-      DOC[add](pre + 'DOMContentLoaded', init, false);
-      DOC[add](pre + 'readystatechange', init, false);
-      WIN[add](pre + 'load', init, false);
+      doc[add](pre + 'DOMContentLoaded', init, false);
+      doc[add](pre + 'readystatechange', init, false);
+      win[add](pre + 'load', init, false);
     }
   }
-
-  /**
-	 * Dummy jQuery factory function
-	 *
-	 * @param  {element|string|object} expression
-	 * @param  {DOMElement} context
-	 * @return {DOM Element wrapped in Mootools}
-	 */
-  var jQuery = function(expression, context) {
-    // 处理 jQuery('<html>').
-    var element;
-
-    if (typeof expression === 'string' && !context){
-      if (expression.charAt(0) === '<' && expression.charAt(expression.length - 1) === '>'){
-        element = new Element('div', {
-          html: expression
-        }).getFirst();
-        return _$$(element);
-      }
-    }
-
-    if (typeof expression === 'object') {
-      return _$$(expression);
-    }
-
-    if (typeof expression === 'function') {
-      return domReady(expression);
-    }
-
-    // Handle jQuery(expression) and jQuery(expression, context).
-    context = context || DOC;
-    expression = expression.trim();
-
-    // if (!/[^0-9a-zA-Z\-_]/.test(expression) && !context) {
-    //   // 兼容 mootools，获取单个id元素 $('xxxx')
-    //   element = document.id(expression, true, DOC);
-    // } else {
-      element = context.getElements(expression);
-    // }
-
-    return element;
+  function noop() {}
+  function toCamelCase(str) {
+    return str.replace(/[\-_](\w)/g, function(str, key) {
+      return key.toUpperCase();
+    });
+  }
+  function toArray(args) {
+    return [].slice.call(args, 0);
+  }
+  function proxy(fn, ctx) {
+    var args = toArray(arguments).slice(2);
+    return function(){
+      return fn.apply(ctx, args.concat(toArray(arguments)));
+    };
   }
 
-  jQuery.ready = function(fn) {
-    fn && domReady(fn);
-  }
+  /*
+   * window.addEvent('domready') 绑定时机，如果延迟，就不会执行了
+   * Function.bind 方法，对参数支持不友好
+   * 拓展 [ready, proxy]
+  */
+  $.extend({
+    ready: function(fn) {
+      domReady(fn);
+    },
+    proxy: proxy
+  });
 
-  // 插入元素
-  function grabElements(ctx, content, where) {
-    var elems = jQuery(content),
-      where = where || 'bottom';
-    if (elems && elems.length) {
-      elems.each(function(elem) {
-        ctx.grab(elem, where);
-      });
-    } else {
-      ctx.grab(elems, where);
-    }
-    return ctx;
-  }
-
-  var jMethods = jQuery.fn = {
+  /*
+   * 拓展元素的常用操作
+   * [attr, removeAttr, html, text, val, css, show, hide, toggle, width, height, outerWidth, outerHeight, position, offset, data, index]
+  */
+  Element.implement({
     attr: function(name, value) {
       if ($type(name) == 'object') var ret = this.setProperties(name);
       var ret = (!value) ? this.getProperty(name) : this.setProperty(name, value);
@@ -129,288 +99,425 @@
       }
       return this;
     },
+    show: function() {
+      var $el = this;
+      var display = $el.getStyle('display');
+      if (display === 'none') {
+        // 如果一开始，就是隐藏的元素，应该找到它正确的 display 值
+        $el.setStyle('display', '');
+        display = $el.getStyle('display');
 
-    // 在 mootools 中被保护了
-    appendElem: function(content) {
-      return grabElements(this, content, 'bottom');
-    },
-    prependElem: function(content) {
-      return grabElements(this, content, 'top');
-    },
-    after: function(content) {
-      return grabElements(this, content, 'after');
-    },
-    before: function(content) {
-      return grabElements(this, content, 'before');
-    },
-
-    wrap: function(elems) {
-      var $wrap = jQuery(elems);
-      var parentNode = this.parentNode;
-
-      $wrap = $wrap.length ? $wrap[0] : $wrap;
-      parentNode.replaceChild($wrap, this);
-      $wrap.appendElem(this);
-
-      return this;
-    },
-    parent: function(expr) {
-      return this.getParent(expr);
-    },
-    parents: function(expr) {
-      return this.getParents(expr);
-    },
-
-    remove: function() {
-      return this.destroy();
-    },
-
-    find: function(expr) {
-      return jQuery(expr, this);
-    },
-    next: function(expr) {
-      return jQuery(this.getNext(expr));
-    },
-    nextAll: function(expr) {
-      return jQuery(this.getAllNext(expr));
-    },
-    prev: function(expr) {
-      return jQuery(this.getPrevious(expr));
-    },
-    prevAll: function(expr) {
-      return jQuery(this.getAllPrevious(expr));
-    },
-
-    on: function(type, elem, func) {
-      var ctx = this;
-      if ($type(elem) == 'function') {
-        func = elem;
-        elem = '';
-      } else {
-        type += elem ? ':relay('+ elem +')' : '';
+        // 真正显示
+        var map = $el.retrieve('$show', { value: display });
+        $el.setStyle('display', map.value);
       }
-      ctx.$fns = ctx.$fns || [];
-      func && ctx.$fns.push({ type: type, fn: func });
-
-      return ctx.addEvent(type, func);
+      return $el;
     },
-    off: function(type, elem, func) {
-      var ctx = this;
-      if ($type(elem) == 'function') {
-        func = elem;
-        elem = '';
+    hide: function() {
+      var $el = this;
+      var display = $el.getStyle('display');
+      if (display !== 'none') {
+        var map = $el.retrieve('$show', { value: display });
+        $el.setStyle('display', 'none');
+      }
+      return $el;
+    },
+    toggle: function() {
+      var $el = this;
+      var display = $el.getStyle('display');
+      if (display === 'none') {
+        $el.show();
       } else {
-        type += elem ? ':relay('+ elem +')' : '';
+        $el.hide();
+      }
+      return $el;
+    },
+    width: function(width) {
+      var ctx = this;
+      if ($type(width)) {
+        return ctx.setStyle('width', width);
+      }
+      var outerWidth = ctx.getWidth();
+      var width = outerWidth - parseInt(ctx.getStyle('padding-left')) - parseInt(ctx.getStyle('padding-right'));
+      return width;
+    },
+    height: function(height) {
+      var ctx = this;
+      if ($type(height)) {
+        return ctx.setStyle('height', height);
+      }
+      var outerHeight = ctx.getHeight();
+      var height = outerHeight - parseInt(ctx.getStyle('padding-top')) - parseInt(ctx.getStyle('padding-bottom'));
+      return height;
+    },
+    outerWidth: function(width) {
+      return this.getWidth();
+    },
+    outerHeight: function(height) {
+      return this.getHeight();
+    },
+    position: function() {
+      var offset = this.getOffsets(),
+        ptOffset = this.getOffsetParent().getOffsets();
+      return { top: offset.y - ptOffset.y, left: offset.x - ptOffset.x };
+    },
+    offset: function() {
+      var offset = this.getOffsets();
+      return { top: offset.y, left: offset.x };
+    },
+    data: (function() {
+      function initDataset(elem) {
+        if (!elem.$dataset) {
+          elem.$dataset = {};
+        }
+        return elem.$dataset;
       }
 
-      if (func) {
-        ctx.removeEvent(type, func);
-        var fns = (ctx.$fns || []), newFns = [];
-        fns.each(function(item) {
-          if (item.type != type || item.fn != func) {
-            newFns.push(item);
+      function datasetCombineWithAttr(elem) {
+        var attributes = elem.attributes;
+        for (var i = 0, max = attributes.length; i < max; i++) {
+          var attr = attributes[i];
+          var name = attributes[i].name;
+          if (name.indexOf('data-') == 0) {
+            var key = toCamelCase(name.split('data-')[1]), value = attr.value;
+            elem.$dataset[key] = value;
+          }
+        }
+        return elem.$dataset;
+      }
+
+      function queryDataset(elem, key, value) {
+        var typeKey = $type(key), typeValue = $type(value);
+        var dataset = elem.$dataset = initDataset(elem);
+
+        if (typeKey === 'object') {
+          var obj = key;
+          Object.keys(obj).each(function(k) {
+            dataset[k] = obj[k];
+          });
+          return elem;
+        } else if (typeKey === 'string') {
+          if (typeValue) {
+            dataset[key] = value;
+            return elem;
+          }
+          return elem.getAttribute('data-' + key) || dataset[key];
+        }
+        return datasetCombineWithAttr(elem);
+      }
+
+      return function(key, value) {
+        return queryDataset(this, key, value);
+      }
+    })(),
+    index: function($target) {
+      var $el = this, result = -1;
+      var $pt;
+      if ($target) {
+        $pt = $el;
+        $el = $target;
+      } else {
+        $pt = $el.getParent();
+      }
+      $pt.getChildren().each(function(_$el, index) {
+        if ($el === _$el) {
+          result = index;
+        }
+      });
+      return result;
+    }
+  });
+
+  /*
+   * 拓展动画部分，mootools 的动画，很强大，但是用着很不及jQuery友好
+  */
+  (function() {
+    var protoAnimate = {
+      animate: function(css, duration, callback, fn) {
+        var ctx = this;
+        var animations = ctx.$animations = ctx.$animations || new AnimateList(ctx);
+        if ($type(css) === 'object') {
+          if ($type(duration) === 'function') {
+            fn = callback;
+            callback = duration;
+            duration = null;
+          }
+          callback = callback || noop;
+          duration = duration || 300;
+
+          var animate = new Animate(ctx, {
+            duration: duration,
+            callback: proxy(callback, ctx),
+            css: css,
+            fn: fn
+          });
+          animations.push(animate);
+        }
+        animations.start();
+
+        return ctx;
+      },
+      delay: function(time) {
+        var ctx = this;
+        if ($type(time) === 'number') {
+          protoAnimate.animate.call(ctx, {}, time);
+        }
+        return ctx;
+      },
+      // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
+      // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
+      stop: function(stopAll, gotoEnd) {
+        var ctx = this, animations = ctx.$animations;
+        animations && animations.stop(stopAll, gotoEnd);
+        return ctx;
+      }
+    };
+    Element.implement(protoAnimate);
+
+    function AnimateList(elem) {
+      var ctx = this;
+      ctx.elem = elem;
+      ctx.list = [];
+      ctx.current = null; // 当前运行动画
+      ctx.isRunning = false;
+    }
+    AnimateList.prototype = {
+      push: function(animate) {
+        var ctx = this;
+        ctx.list.push(animate);
+        return ctx;
+      },
+      next: function() {
+        var ctx = this, animate = ctx.list.shift();
+        if (animate) {
+          ctx.current = animate;
+          animate.onEnd = function() {
+            ctx.next();
+          };
+          animate.start();
+        } else {
+          ctx.current = null;
+          ctx.isRunning = false;
+        }
+      },
+      start: function() {
+        var ctx = this;
+        if (ctx.isRunning) {
+          return ctx;
+        }
+        ctx.isRunning = true;
+        ctx.next();
+      },
+      stop: function(stopAll, gotoEnd) {
+        var ctx = this;
+        ctx.isRunning = false;
+
+        // 停止当前运行的
+        if (ctx.current) {
+          ctx.current.onEnd = function() {};
+          ctx.current.stop(gotoEnd);
+          ctx.current = null;
+        }
+
+        // 清空列表
+        if (stopAll) {
+          ctx.list.each(function(animate) {
+            animate.start();
+            animate.stop(gotoEnd);
+          });
+          ctx.list = [];
+        } else {
+          // 执行下一个动画
+          ctx.next();
+        }
+
+        return ctx;
+      }
+    };
+
+    function hexToRgb(str) {
+  		var hex = str.match(/^#?(\w{1,2})(\w{1,2})(\w{1,2})$/);
+      if (hex) {
+        var colors = hex.slice(1);
+    		var rgb = colors.map(function(value){
+    			if (value.length == 1) value += value;
+    			return value.toInt(16);
+    		});
+        return rgb;
+      }
+      return null;
+  	}
+
+    var Color = {
+  		parse: function(value){
+  			if (value.match(/^#[0-9a-f]{3,6}$/i)) return hexToRgb(value);
+  			return ((value = value.match(/(\d+),\s*(\d+),\s*(\d+)/))) ? [+value[1], +value[2], +value[3]] : false;
+  		},
+  		compute: function(from, to, delta){
+  			return from.map(function(value, i){
+  				return Math.round(Fx.compute(from[i], to[i], delta));
+  			});
+  		},
+      isColor: function(value) {
+        value = value + '';
+        return !!(value.match(/^#[0-9a-f]{3,6}$/i) || value.match(/(\d+),\s*(\d+),\s*(\d+)/));
+      }
+  	};
+
+    // 电脑 CPU 决定，setTimeout() 最快只能是 20ms
+    var BaseTime = 20;
+    function Animate(elem, options) {
+      var ctx = this;
+      options = options || {};
+
+      ctx.elem = elem;
+      ctx.duration = Math.max(options.duration || 0, BaseTime);
+      ctx.callback = options.callback || function() {};
+      ctx.css = options.css || {};
+
+      // result 是return的结果
+      // currentTime 当前耗费的总时间
+      // beginValue 开始的值
+      // distanceValue 结束值 - 开始值
+      // totalTime 总共的耗时
+      ctx.fn = options.fn || function(result, currentTime, beginValue, distanceValue, totalTime) {
+        return beginValue + distanceValue * currentTime / totalTime;
+      };
+
+      // { width: [5, 'px'] }
+      ctx.oldCss = {};
+      ctx.isRunning = false;
+      ctx.index = 0;
+      ctx.count = Math.max(1, ctx.duration / BaseTime);
+      ctx.timer = null;
+    }
+
+    var ElemProperties = 'scrollTop,scrollLeft'.split(',');
+
+    Animate.prototype = {
+      onEnd: function() {},
+
+      set: function(property, now) {
+        var elem = this.elem;
+        if (ElemProperties.indexOf(property) >= 0) {
+          elem[property] = now;
+        } else {
+          elem.setStyle(property, now);
+        }
+      },
+
+      step: function() {
+        var ctx = this;
+        ctx.timer = setTimeout(function() {
+          var old = ctx.oldCss, css = ctx.css;
+          var elem = ctx.elem, fn = ctx.fn;
+          var index = ctx.index++;
+
+          Object.keys(css).each(function(key) {
+            var beginValue = old[key][0], endValue = css[key];
+            if ($type(beginValue) === 'array') {
+              // 颜色，格式为 [244, 244, 244]
+              var val = [];
+              endValue = Color.parse(endValue);
+              beginValue.each(function(_beginValue, i) {
+                var _endValue = endValue[i];
+                val.push(
+                  fn(0, index * BaseTime, _beginValue, _endValue - _beginValue, ctx.duration)
+                );
+              });
+              ctx.set(key, 'rgb(' + val.join(',') + ')');
+            } else {
+              var val = fn(0, index * BaseTime, beginValue, endValue - beginValue, ctx.duration);
+              ctx.set(key, val + (old[key][1] || 0));
+            }
+          });
+
+          if (index >= ctx.count) {
+            ctx._doCallback();
+            ctx.isRunning = false;
+          } else {
+            ctx.step();
+          }
+        }, BaseTime);
+      },
+
+      start: function(css) {
+        var ctx = this;
+
+        if (ctx.isRunning) {
+          return ctx;
+        }
+        ctx.isRunning = true;
+
+        ctx.css = css || ctx.css;
+        ctx.oldCss = {};
+        Object.keys(ctx.css).each(function(key) {
+          var styles;
+          // TODO 动画更好的方式，应该是建立3个不同的类别，对外提供更好的接口，现在先硬编一下
+          if (ElemProperties.indexOf(key) >= 0) {
+            ctx.oldCss[key] = [ctx.elem[key]];
+          } else {
+            var value = ctx.elem.getStyle(key);
+            if (Color.isColor(value)) {
+              ctx.oldCss[key] = [Color.parse(value)];
+            } else {
+              styles = value.match(/(-?\d*\.?\d*)(.*)/);
+              // 5px -> ["5px", "5", "px"]
+              ctx.oldCss[key] = [+styles[1], styles[2]];
+            }
           }
         });
-        ctx.$fns = newFns;
-      } else {
-        ctx.removeEvents(type);
-      }
 
-      if (ctx.$fns.length <= 0) {
-        ctx.$fns = void 0;
-      }
+        ctx.index = 1;
+        ctx.step();
 
-      return ctx;
-    },
-    trigger: function(type, elems, args) {
-      var ctx = this;
-      if ($type(elems) == 'string') {
-        type += ':relay('+ elems +')';
-      } else {
-        args = elems;
-      }
-      ctx.fireEvent(type, args);
-      return ctx;
-      // return this.fireEvent(type, args);
-    },
+        return ctx;
+      },
 
-    blur: function(fn) {
-      if ($type(fn) == 'function') {
-        return this.addEvent('blur', fn);
-      }
-      this['blur'] ? this['blur']() : this.fireEvent('blur');
-      return this;
-    },
-    focus: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("focus", fn);
-        this.fireEvent("focus");
-        return $extend(ret, jMethods);
-    },
-    load: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("load", fn);
-        this.fireEvent("load");
-        return $extend(ret, jMethods);
-    },
-    resize: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("resize", fn);
-        this.fireEvent("resize");
-        return $extend(ret, jMethods);
-    },
-    scroll: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("scroll", fn);
-        this.fireEvent("scroll");
-        return $extend(ret, jMethods);
-    },
-    unload: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("unload", fn);
-        this.fireEvent("unload");
-        return $extend(ret, jMethods);
-    },
-    click: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("click", fn);
-        this.fireEvent("click");
-        return $extend(ret, jMethods);
-    },
-    dblclick: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("dblclick", fn);
-        this.fireEvent("dblclick");
-        return $extend(ret, jMethods);
-    },
-    mousedown: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mousedown", fn);
-        this.fireEvent("mousedown");
-        return $extend(ret, jMethods);
-    },
-    mouseup: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseup", fn);
-        this.fireEvent("mouseup");
-        return $extend(ret, jMethods);
-    },
-    mousemove: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mousemove", fn);
-        this.fireEvent("mousemove");
-        return $extend(ret, jMethods);
-    },
-    mouseover: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseover", fn);
-        this.fireEvent("mouseover");
-        return $extend(ret, jMethods);
-    },
-    mouseout: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseout", fn);
-        this.fireEvent("mouseout");
-        return $extend(ret, jMethods);
-    },
-    mouseenter: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseenter", fn);
-        this.fireEvent("mouseenter");
-        return $extend(ret, jMethods);
-    },
-    mouseleave: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("mouseleave", fn);
-        this.fireEvent("mouseleave");
-        return $extend(ret, jMethods);
-    },
-    change: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("change", fn);
-        this.fireEvent("change");
-        return $extend(ret, jMethods);
-    },
-    select: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("select", fn);
-        this.fireEvent("select");
-        return $extend(ret, jMethods);
-    },
-    submit: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("submit", fn);
-        this.fireEvent("submit");
-        return $extend(ret, jMethods);
-    },
-    keydown: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("keydown", fn);
-        this.fireEvent("keydown");
-        return $extend(ret, jMethods);
-    },
-    keypress: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("keypress", fn);
-        this.fireEvent("keypress");
-        return $extend(ret, jMethods);
-    },
-    keyup: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("keyup", fn);
-        this.fireEvent("keyup");
-        return $extend(ret, jMethods);
-    },
-    error: function(fn) {
-        if ($type(fn) == 'function') var ret = this.addEvent("error", fn);
-        this.fireEvent("error");
-        return $extend(ret, jMethods);
-    }
-  };
+      // 获取动画之前的样式
+      getOrignalCss: function() {
+        var ctx = this;
+        var oldCss = {};
+        Object.keys(ctx.oldCss).each(function(key) {
+          oldCss[key] = ctx.oldCss[key].join('');
+        });
+        return oldCss;
+      },
 
+      reset: function(css) {
+        var ctx = this.stop();
+        if (!css) {
+          css = ctx.getOrignalCss();
+        }
 
-  function getListAdaptMethod(method, index) {
-    var fn = jMethods[method];
-    return function() {
-      var args = arguments;
-      var val = args[index || 0];
-      if (!$type(val)) {
-        return fn.apply(this[0], args);
+        Object.keys(css).each(function(key) {
+          ctx.set(key, css[key]);
+        });
+
+        return ctx;
+      },
+
+      stop: function(gotoEnd) {
+        var ctx = this;
+        var isRunning = ctx.isRunning;
+
+        clearTimeout(ctx.timer);
+        ctx.isRunning = false;
+
+        if (isRunning) {
+          if (gotoEnd) {
+            ctx.reset(ctx.css);
+          }
+          ctx._doCallback();
+        }
+        return ctx;
+      },
+
+      _doCallback: function() {
+        var ctx = this;
+        ctx.callback();
+        ctx.onEnd();
       }
-      return fn.apply(this, args);
     };
-  }
-  function getListErgodicMethod(method) {
-    var fn = jMethods[method];
-    return function() {
-      var args = arguments, result = [];
-      this.each(function($r) {
-        var _fn = fn || $r[method];
-        result.combine(_fn.apply($r, args));
-      });
-      return jQuery(result);
-    }
-  }
-
-  var listMethods = {
-    attr: getListAdaptMethod('attr', 1),
-    html: getListAdaptMethod('html', 0),
-    text: getListAdaptMethod('text', 0),
-    val: getListAdaptMethod('val', 0),
-    css: getListAdaptMethod('css', 1),
-
-    children: getListErgodicMethod('getChildren'),
-    eq: function(index) {
-      var list = this,
-        length = this.length;
-      index = index % length;
-      if (index < 0) {
-        index += length;
-      } else if (index >= length) {
-        index -= length;
-      }
-      return jQuery(list[index]);
-    },
-    last: function() {
-      var children = this.children();
-      return jQuery(children[children.length - 1]);
-    },
-
-    find: getListErgodicMethod('find'),
-    next: getListErgodicMethod('next'),
-    nextAll: getListErgodicMethod('nextAll'),
-    prev: getListErgodicMethod('prev'),
-    prevAll: getListErgodicMethod('prevAll')
-  };
-
-
-  Object.keys(jMethods).each(function(key) {
-    Element.implement(key, jMethods[key]);
-  });
-
-  Object.keys(listMethods).each(function(key) {
-    Elements.implement(key, listMethods[key]);
-  });
-
-  WIN[NAME] = jQuery;
-})(window, $, $$, window.JQUERY_NAME || 'jQuery');
+  })();
+})(window);
