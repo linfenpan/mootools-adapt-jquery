@@ -62,7 +62,7 @@
 
   /*
    * 拓展元素的常用操作
-   * [attr, removeAttr, html, text, val, css, show, hide, toggle, width, height, outerWidth, outerHeight, position, offset, data, index]
+   * [attr, removeAttr, html, text, val, css, show, hide, toggle, innerWidth, innerHeight, outerWidth, outerHeight, position, offset, data, index]
   */
   Element.implement({
     attr: function(name, value) {
@@ -133,7 +133,7 @@
       }
       return $el;
     },
-    width: function(width) {
+    innerWidth: function(width) {
       var ctx = this;
       if ($type(width)) {
         return ctx.setStyle('width', width);
@@ -142,7 +142,7 @@
       var width = outerWidth - parseInt(ctx.getStyle('padding-left')) - parseInt(ctx.getStyle('padding-right'));
       return width;
     },
-    height: function(height) {
+    innerHeight: function(height) {
       var ctx = this;
       if ($type(height)) {
         return ctx.setStyle('height', height);

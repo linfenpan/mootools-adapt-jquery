@@ -100,17 +100,17 @@
     console.assert($jsToggle.css('display') !== 'none', 'toggle() 方法没能显示元素');
   </script>
 
-  <h1>.width();<br> .height();<br> .outerWidth();<br> .outerHeight();</h1>
+  <h1>.innerWidth();<br> .innerHeight();<br> .outerWidth();<br> .outerHeight();</h1>
   <div id="jsWH" style="width: 100px; height: 150px; padding: 25px;"></div>
   <script>
     var $jsWH = $('jsWH');
-    console.assert($jsWH.width() == 100, 'width() 获取宽度不正确');
-    console.assert($jsWH.height() == 150, 'height() 获取高度不正确');
+    console.assert($jsWH.innerWidth() == 100, 'innerWidth() 获取宽度不正确');
+    console.assert($jsWH.innerHeight() == 150, 'innerHeight() 获取高度不正确');
 
-    $jsWH.width(50);
-    $jsWH.height(100);
-    console.assert($jsWH.width() == 50, 'width(x) 设置宽度不正确');
-    console.assert($jsWH.height() == 100, 'height(x) 设置高度不正确');
+    $jsWH.innerWidth(50);
+    $jsWH.innerHeight(100);
+    console.assert($jsWH.innerWidth() == 50, 'innerWidth(x) 设置宽度不正确');
+    console.assert($jsWH.innerHeight() == 100, 'innerHeight(x) 设置高度不正确');
 
     console.assert($jsWH.outerWidth() == 100, 'outerWidth() 获取宽度不正确');
     console.assert($jsWH.outerHeight() == 150, 'outerHeight() 获取高度不正确');
@@ -174,7 +174,7 @@
 
     setTimeout(function() {
       $jsAnimate1.stop();
-      console.assert($jsAnimate1.height() !== 150, 'stop() 方法失败了');
+      console.assert($jsAnimate1.innerHeight() !== 150, 'stop() 方法失败了');
     }, 700);
 
     var jsAnimateResult1 = 0;
@@ -216,10 +216,10 @@
     var $jsAnimate4 = $('jsAnimate4');
     $jsAnimate4.delay(1000).animate({ width: 50 }, 500).delay(1000).animate({ width: 150 }, 500);
     setTimeout(function() {
-      console.assert($jsAnimate4.width() === 100, '.delay() 放在 .animate() 其前面，没有生效');
+      console.assert($jsAnimate4.innerWidth() === 100, '.delay() 放在 .animate() 其前面，没有生效');
     }, 500);
     setTimeout(function() {
-      console.assert($jsAnimate4.width() === 50, '.delay() 放在 .animate() 后面，没有生效');
+      console.assert($jsAnimate4.innerWidth() === 50, '.delay() 放在 .animate() 后面，没有生效');
     }, 2000);
   </script>
 </body>
