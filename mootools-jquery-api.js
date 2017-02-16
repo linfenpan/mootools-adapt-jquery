@@ -118,6 +118,7 @@
       var display = $el.getStyle('display');
       if (display !== 'none') {
         var map = $el.retrieve('$show', { value: display });
+        map.value = display;
         $el.setStyle('display', 'none');
       }
       return $el;
