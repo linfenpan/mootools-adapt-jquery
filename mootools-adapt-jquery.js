@@ -222,7 +222,7 @@
       if ($type(name) == 'object') {
         return this.setStyles(name);
       } else {
-        if (!value) {
+        if (value === void 0) {
           return this.getStyle(name);
         } else {
           return this.setStyle(name, value);
@@ -368,6 +368,7 @@
       var display = $el.getStyle('display');
       if (display !== 'none') {
         var map = $el.retrieve('$show', { value: display });
+        map.value = display;
         $el.setStyle('display', 'none');
       }
       return $el;
@@ -400,8 +401,11 @@
       if ($type(width)) {
         return ctx.setStyle('width', width);
       }
-      var outerWidth = ctx.getWidth();
-      var width = outerWidth - parseInt(ctx.getStyle('padding-left')) - parseInt(ctx.getStyle('padding-right'));
+      var width = ctx.getWidth();
+      ['padding-left', 'padding-right', 'border-left-width', 'border-right-width'].each(function(attr) {
+        var value = parseInt(ctx.getStyle(attr));
+        width -= isNaN(value) ? 0 : value;
+      });
       return width;
     },
     height: function(height) {
@@ -409,8 +413,11 @@
       if ($type(height)) {
         return ctx.setStyle('height', height);
       }
-      var outerHeight = ctx.getHeight();
-      var height = outerHeight - parseInt(ctx.getStyle('padding-top')) - parseInt(ctx.getStyle('padding-bottom'));
+      var height = ctx.getHeight();
+      ['padding-top', 'padding-bottom', 'border-top-width', 'border-bottom-width'].each(function(attr) {
+        var value = parseInt(ctx.getStyle(attr));
+        height -= isNaN(value) ? 0 : value;
+      });
       return height;
     },
     outerWidth: function(width) {
