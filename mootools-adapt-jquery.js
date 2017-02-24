@@ -356,9 +356,11 @@
         // 如果一开始，就是隐藏的元素，应该找到它正确的 display 值
         $el.setStyle('display', '');
         display = $el.getStyle('display');
+        display = display === 'none' ? 'block' : display;
 
         // 真正显示
         var map = $el.retrieve('$show', { value: display });
+        map.value = display;
         $el.setStyle('display', map.value);
       }
       return $el;
@@ -771,12 +773,23 @@
           if (ElemProperties.indexOf(key) >= 0) {
             ctx.oldCss[key] = [ctx.elem[key]];
           } else {
-            var value = ctx.elem.getStyle(key);
+            var value = ctx.elem.getStyle(key) + '';
             if (Color.isColor(value)) {
               ctx.oldCss[key] = [Color.parse(value)];
             } else {
-              styles = value.match(/(-?\d*\.?\d*)(.*)/);
               // 5px -> ["5px", "5", "px"]
+              styles = value.match(/(-?\d*\.?\d*)(.*)/);
+              
+              // auto -> ["auto", "", "auto"]
+              if (value === 'auto') {
+                // top/left/width/height 这些情况
+                var fixValue = 0, method = key.slice(0, 1).toUpperCase() + key.slice(1);
+                if (ctx.elem[method]) {
+                  fixValue = ctx.elem[method]();
+                }
+                styles = ['', fixValue, 'px'];
+              }
+              
               ctx.oldCss[key] = [+styles[1], styles[2]];
             }
           }

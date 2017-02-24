@@ -24,6 +24,31 @@
       console.assert(domready === 2, '应该运行domready方法');
     }, 1000);
   </script>
+  
+  <h1>IE兼容测试</h1>
+  <div>
+    <table id="ie1">
+      <tr id="ie2">
+        <td id="ie3"></td>
+      </tr>
+    </table>
+    <img src="" id="ie4" />
+    <a href="javascript:;" id="ie5"></a>
+    <script id="ie6" type="text/html"></script>
+    <form id="ie7">
+      <input type="input" id="ie8" />
+      <input type="button" id="ie9" />
+      <button id="ie10"></button>
+      <span id="ie11"></span>
+      <p id="ie12"></p>
+      <h1 id="ie13"></h1>
+    </form>
+  </div>
+  <script>
+    for (var i = 1, max = 13; i <= max; i++) {
+      $('ie' + i);
+    }
+  </script>
 
   <h1 id="jsAttr">.attr('href');</h1>
   <script>
