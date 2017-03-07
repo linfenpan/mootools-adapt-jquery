@@ -70,29 +70,29 @@
    * [attr, removeAttr, html, text, val, css, show, hide, toggle, innerWidth, innerHeight, outerWidth, outerHeight, position, offset, data, index]
   */
   Element.implement({
-    attr: function(name, value) {
+    $attr: function(name, value) {
       if ($type(name) == 'object') var ret = this.setProperties(name);
       var ret = (!value) ? this.getProperty(name) : this.setProperty(name, value);
       return ret;
     },
-    removeAttr: function(name) {
+    $removeAttr: function(name) {
       return this.removeProperty(name);
     },
-    html: function(html) {
+    $html: function(html) {
       if (!$type(html)) return this.get('html');
       this.set('html', html);
       return this;
     },
-    text: function(text) {
+    $text: function(text) {
       if (!text) return this.get('text');
       this.set('text', text);
       return this;
     },
-    val: function(value) {
+    $val: function(value) {
       var ret = (!value) ? this.getProperty("value") : this.setProperty("value", value);
       return ret;
     },
-    css: function(name, value) {
+    $css: function(name, value) {
       if ($type(name) == 'object') {
         return this.setStyles(name);
       } else {
@@ -104,7 +104,7 @@
       }
       return this;
     },
-    show: function() {
+    $show: function() {
       var $el = this;
       var display = $el.getStyle('display');
       if (display === 'none') {
@@ -114,33 +114,33 @@
         display = display === 'none' ? 'block' : display;
 
         // 真正显示
-        var map = $el.retrieve('$show', { value: display });
+        var map = $el.retrieve('$$show', { value: display });
         map.value = display;
         $el.setStyle('display', map.value);
       }
       return $el;
     },
-    hide: function() {
+    $hide: function() {
       var $el = this;
       var display = $el.getStyle('display');
       if (display !== 'none') {
-        var map = $el.retrieve('$show', { value: display });
+        var map = $el.retrieve('$$show', { value: display });
         map.value = display;
         $el.setStyle('display', 'none');
       }
       return $el;
     },
-    toggle: function() {
+    $toggle: function() {
       var $el = this;
       var display = $el.getStyle('display');
       if (display === 'none') {
-        $el.show();
+        $el.$show();
       } else {
-        $el.hide();
+        $el.$hide();
       }
       return $el;
     },
-    innerWidth: function(width) {
+    $width: function(width) {
       var ctx = this;
       if ($type(width)) {
         return ctx.setStyle('width', width);
@@ -152,7 +152,7 @@
       });
       return width;
     },
-    innerHeight: function(height) {
+    $height: function(height) {
       var ctx = this;
       if ($type(height)) {
         return ctx.setStyle('height', height);
@@ -164,22 +164,22 @@
       });
       return height;
     },
-    outerWidth: function(width) {
+    $outerWidth: function(width) {
       return this.getWidth();
     },
-    outerHeight: function(height) {
+    $outerHeight: function(height) {
       return this.getHeight();
     },
-    position: function() {
+    $position: function() {
       var offset = this.getOffsets(),
         ptOffset = this.getOffsetParent().getOffsets();
       return { top: offset.y - ptOffset.y, left: offset.x - ptOffset.x };
     },
-    offset: function() {
+    $offset: function() {
       var offset = this.getOffsets();
       return { top: offset.y, left: offset.x };
     },
-    data: (function() {
+    $data: (function() {
       function initDataset(elem) {
         if (!elem.$dataset) {
           elem.$dataset = {};
@@ -224,7 +224,7 @@
         return queryDataset(this, key, value);
       }
     })(),
-    index: function($target) {
+    $index: function($target) {
       var $el = this, result = -1;
       var $pt;
       if ($target) {
@@ -247,7 +247,7 @@
   */
   (function() {
     var protoAnimate = {
-      animate: function(css, duration, callback, fn) {
+      $animate: function(css, duration, callback, fn) {
         var ctx = this;
         var animations = ctx.$animations = ctx.$animations || new AnimateList(ctx);
         if ($type(css) === 'object') {
@@ -271,16 +271,16 @@
 
         return ctx;
       },
-      delay: function(time) {
+      $delay: function(time) {
         var ctx = this;
         if ($type(time) === 'number') {
-          protoAnimate.animate.call(ctx, {}, time);
+          protoAnimate.$animate.call(ctx, {}, time);
         }
         return ctx;
       },
       // @param {Boolean} stopAll 是否停止队列的所有动画，否则只停止第一个
       // @param {Boolean} gotoEnd 是否立刻结束当前队列的动画，并且强制进入结束，触发回调
-      stop: function(stopAll, gotoEnd) {
+      $stop: function(stopAll, gotoEnd) {
         var ctx = this, animations = ctx.$animations;
         animations && animations.stop(stopAll, gotoEnd);
         return ctx;
@@ -477,7 +477,7 @@
             } else {
               // 5px -> ["5px", "5", "px"]
               styles = value.match(/(-?\d*\.?\d*)(.*)/);
-              
+
               // auto -> ["auto", "", "auto"]
               if (value === 'auto') {
                 // top/left/width/height 这些情况
@@ -487,7 +487,7 @@
                 }
                 styles = ['', fixValue, 'px'];
               }
-              
+
               ctx.oldCss[key] = [+styles[1], styles[2]];
             }
           }
